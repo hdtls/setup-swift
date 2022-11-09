@@ -5,46 +5,8 @@ import { System, OS } from "./os";
 
 const SWIFT_WEBROOT = "https://download.swift.org";
 
-export function resolveReleaseFile(
-  versionSpec: string,
-  system: System
-): tc.IToolReleaseFile {
-  let platform: string;
-  let platformVersion: string | undefined;
-  let filename: string;
-
-  switch (system.os) {
-    case OS.MacOS:
-      platform = "xcode";
-      filename = `swift-${versionSpec}-RELEASE-osx.pkg`;
-      break;
-    case OS.Ubuntu:
-      platform = `ubuntu${system.version.replace(/\D/g, "")}`;
-      platformVersion = system.version.replace(/\D/g, "");
-      filename = `swift-${versionSpec}-RELEASE-${platform}${platformVersion}.tar.gz`;
-      break;
-    case OS.Windows:
-      platform = "windows10";
-      filename = `swift-${versionSpec}-RELEASE-windows10.exe`;
-      break;
-    default:
-      throw new Error("Cannot create release file for an unsupported OS");
-  }
-
-  const SWIFT_BRANCH = `swift-${versionSpec}-release`;
-  const SWIFT_WEBDIR = `${SWIFT_WEBROOT}/${SWIFT_BRANCH}/${platform}${
-    platformVersion?.replace(".", "") || ""
-  }`;
-  return {
-    filename: filename,
-    platform: platform,
-    platform_version: platformVersion,
-    arch: "string",
-    download_url: `${SWIFT_WEBDIR}/swift-${versionSpec}-RELEASE/${filename}`,
-  };
-}
-
-export const VERSIONS_LIST: [string, OS[]][] = [
+const VERSIONS_LIST: [string, OS[]][] = [
+  ["5.7.1", OS.all()],
   ["5.7", [OS.MacOS, OS.Ubuntu]],
   ["5.6.3", OS.all()],
   ["5.6.2", OS.all()],
@@ -99,28 +61,60 @@ export const VERSIONS_LIST: [string, OS[]][] = [
   ["2.2", [OS.MacOS, OS.Ubuntu]],
 ];
 
-const AVAILABLE_VERSIONS: [semver.SemVer, OS[]][] = VERSIONS_LIST.map(
-  ([version, os]) => {
-    const semverVersion = semver.coerce(version);
-    return <[semver.SemVer, OS[]]>[semverVersion, os];
-  }
-);
+export function resolveReleaseFile(
+  versionSpec: string,
+  system: System
+): tc.IToolReleaseFile {
+  let platform: string;
+  let platformVersion: string | undefined;
+  let filename: string;
 
-export function getSemanticVersion(version: string, system: System) {
-  return verify(version, system);
+  switch (system.os) {
+    case OS.MacOS:
+      platform = "xcode";
+      filename = `swift-${versionSpec}-RELEASE-osx.pkg`;
+      break;
+    case OS.Ubuntu:
+      platform = `ubuntu${system.version.replace(/\D/g, "")}`;
+      platformVersion = system.version.replace(/\D/g, "");
+      filename = `swift-${versionSpec}-RELEASE-${platform}${platformVersion}.tar.gz`;
+      break;
+    case OS.Windows:
+      platform = "windows10";
+      filename = `swift-${versionSpec}-RELEASE-windows10.exe`;
+      break;
+    default:
+      throw new Error("Cannot create release file for an unsupported OS");
+  }
+
+  const SWIFT_BRANCH = `swift-${versionSpec}-release`;
+  const SWIFT_WEBDIR = `${SWIFT_WEBROOT}/${SWIFT_BRANCH}/${platform}${
+    platformVersion?.replace(".", "") || ""
+  }`;
+  return {
+    filename: filename,
+    platform: platform,
+    platform_version: platformVersion,
+    arch: "string",
+    download_url: `${SWIFT_WEBDIR}/swift-${versionSpec}-RELEASE/${filename}`,
+  };
 }
 
-export function verify(version: string, system: System) {
-  let versions = VERSIONS_LIST.filter(([_, os]) => os.includes(system.os)).map(
-    ([version, _]) => version
-  );
-
-  let matchingVersion = tc.evaluateVersions(versions, version);
-  if (matchingVersion === null) {
-    throw new Error(`Version "${version}" is not available`);
+export function evaluateVersion(version: string, system: System) {
+  let range = semver.validRange(version);
+  if (range === null) {
+    throw new Error("Version range is invalid");
   }
 
-  core.debug(`Found matching version ${matchingVersion}`);
+  let versions = VERSIONS_LIST.filter(([_, os]) => os.includes(system.os)).map(
+    ([version, _]) => semver.coerce(version)!.version
+  );
 
-  return matchingVersion;
+  const semanticVersion = semver.coerce(tc.evaluateVersions(versions, version));
+
+  return !semanticVersion
+    ? ""
+    : `${semanticVersion.major}.${semanticVersion.minor}${
+        semanticVersion.patch > 0 ? `.${semanticVersion.patch}` : ""
+      }`;
 }
