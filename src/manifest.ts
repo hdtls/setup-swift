@@ -2,7 +2,7 @@ import * as core from "@actions/core";
 import * as tc from "@actions/tool-cache";
 import * as semver from "semver";
 import * as os from "node:os";
-import { System, OS } from "./os";
+import { System, OS } from "./system";
 
 const SWIFT_WEBROOT = "https://download.swift.org";
 
@@ -195,8 +195,9 @@ export function resolveReleaseFile(
       filename = `swift-${versionSpec}-RELEASE-${platform}${platformVersion}.tar.gz`;
       break;
     case OS.Windows:
-      platform = "windows10";
-      filename = `swift-${versionSpec}-RELEASE-windows10.exe`;
+      platform = "windows";
+      platformVersion = "10";
+      filename = `swift-${versionSpec}-RELEASE-${platform}${platformVersion}.exe`;
       break;
     default:
       throw new Error("Cannot create release file for an unsupported OS");
@@ -210,7 +211,7 @@ export function resolveReleaseFile(
     filename: filename,
     platform: platform,
     platform_version: platformVersion,
-    arch: "string",
+    arch: process.arch,
     download_url: `${SWIFT_WEBDIR}/swift-${versionSpec}-RELEASE/${filename}`,
   };
 }

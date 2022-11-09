@@ -1,7 +1,7 @@
 import * as core from "@actions/core";
 import * as manifest from "./manifest";
 import * as installer from "./installer";
-import { getSystem } from "./os";
+import { getSystem } from "./system";
 
 function getVersion(): string {
   let versionSpec = core.getInput("swift-version");
@@ -21,7 +21,9 @@ export async function run() {
 
     const versionSpec = manifest.evaluateVersion(inputVersion, system);
 
-    await installer.install(versionSpec, system);
+    const release = manifest.resolveReleaseFile(versionSpec, system);
+
+    await installer.install(versionSpec, release);
   } catch (err) {
     core.setFailed((err as Error).message);
   }
