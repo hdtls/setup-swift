@@ -11,8 +11,12 @@ on:
 jobs:
   unit-test:
     name: Unit tests
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
       - uses: actions/checkout@v3
       - run: |
           yarn install
@@ -24,13 +28,28 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        swift-version: ["5.7", "5.7.1"]
+        os: [macos-latest]
+        swift-version: ["5.7"]
     steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
       - uses: actions/checkout@v3
       - run: |
           yarn install
           yarn build
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - run: |
+          if which swift >/dev/null; then
+            swift --version
+          fi
+
+      - run: echo $TOOLCHAINS
 
       - name: Setup Swift...
         uses: ./
@@ -38,3 +57,5 @@ jobs:
           swift-version: ${{ matrix.swift-version }}
 
       - run: swift --version | grep ${{ matrix.swift-version }} || exit 1
+
+      - run: echo $TOOLCHAINS
