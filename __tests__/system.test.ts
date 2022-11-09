@@ -1,4 +1,4 @@
-import * as os from "../src/os";
+import * as os from "../src/system";
 
 jest.mock("getos");
 
