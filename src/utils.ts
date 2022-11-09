@@ -1,7 +1,7 @@
 import * as core from "@actions/core";
 import * as exec from "@actions/exec";
 
-export function resolveVersionFromMessage(message: string): string {
+export function extractSwiftVersionFromMessage(message: string): string {
   const match = message.match(
     /Swift\ version (?<version>[0-9]+\.[0-9+]+(\.[0-9]+)?)/
   ) || {
@@ -15,7 +15,18 @@ export function resolveVersionFromMessage(message: string): string {
   return match.groups.version || "";
 }
 
-export async function resolveVersionFromCommandLine(commandLine: string) {
+export async function extractToolChainsFromPropertyList(plist: string) {
+  return await extractCommandLineMessage("/usr/libexec/PlistBuddy", [
+    "-c",
+    '"Print CFBundleIdentifier"',
+    plist,
+  ]);
+}
+
+export async function extractCommandLineMessage(
+  commandLine: string,
+  args?: string[]
+): Promise<string> {
   let message = "";
   const options = {
     listeners: {
@@ -28,7 +39,7 @@ export async function resolveVersionFromCommandLine(commandLine: string) {
     },
   };
 
-  await exec.exec(commandLine, ["--version"], options);
+  await exec.exec(commandLine, args, options);
 
-  return resolveVersionFromMessage(message);
+  return message;
 }

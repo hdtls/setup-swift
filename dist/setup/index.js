@@ -16166,42 +16166,25 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.verify = exports.setupKeys = exports.importKeys = void 0;
+exports.verify = exports.importKeys = void 0;
 const exec = __importStar(__nccwpck_require__(1514));
 const tc = __importStar(__nccwpck_require__(7784));
 function importKeys() {
     return __awaiter(this, void 0, void 0, function* () {
-        yield setupKeys();
+        let keys = yield tc.downloadTool("https://swift.org/keys/all-keys.asc");
+        yield exec.exec("gpg", ["--import", keys]);
     });
 }
 exports.importKeys = importKeys;
-function setupKeys() {
-    return __awaiter(this, void 0, void 0, function* () {
-        let keys = yield tc.downloadTool("https://swift.org/keys/all-keys.asc");
-        let output = "";
-        const options = {
-            silent: true,
-            listeners: {
-                stdout: (data) => {
-                    output += data.toString();
-                },
-            },
-        };
-        yield exec.exec("gpg", ["--batch", "--import-options", "import-show", "--import", keys], options);
-        yield exec.exec("gpg", [
-            "--batch",
-            "--quiet",
-            "--keyserver",
-            "keyserver.ubuntu.com",
-            "--recv-keys",
-            keys,
-        ]);
-    });
-}
-exports.setupKeys = setupKeys;
 function verify(signature, archive) {
     return __awaiter(this, void 0, void 0, function* () {
-        yield exec.exec("gpg", ["--batch", "--verify", signature, archive]);
+        yield exec.exec("gpg", [
+            "--keyserver",
+            "hkp://keyserver.ubuntu.com",
+            "--refresh-keys",
+            "Swift",
+        ]);
+        yield exec.exec("gpg", ["--verify", signature, archive]);
     });
 }
 exports.verify = verify;
@@ -16251,104 +16234,97 @@ exports.install = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const os = __importStar(__nccwpck_require__(2037));
 const path = __importStar(__nccwpck_require__(1017));
-const exec = __importStar(__nccwpck_require__(1514));
 const tc = __importStar(__nccwpck_require__(7784));
 const gpg = __importStar(__nccwpck_require__(3759));
-const manifest = __importStar(__nccwpck_require__(1635));
-const os_1 = __nccwpck_require__(7332);
-//download.swift.org/swift-5.7.1-release/xcode/swift-5.7.1-RELEASE/swift-5.7.1-RELEASE-osx.pkg
-//download.swift.org/swift-5.7.1-release/ubuntu18.04/swift-5.7.1-RELEASE/swift-5.7.1-RELEASE-ubuntu18.04.tar.gz.sig
-const SWIFT_TOOLNAME = "Swift";
-function versionFromPath(commandLine) {
+const utils = __importStar(__nccwpck_require__(1314));
+const SWIFT_TOOLNAME = "swift";
+function install(versionSpec, manifest) {
     return __awaiter(this, void 0, void 0, function* () {
-        let message = "";
-        const options = {
-            listeners: {
-                stdout: (data) => {
-                    message += data.toString().trim();
-                },
-                stderr: (data) => {
-                    core.error(data.toString().trim());
-                },
-            },
-        };
-        yield exec.exec(commandLine, ["--version"], options);
-        const match = message.match(/Swift\ version (?<version>[0-9]+\.[0-9+]+(\.[0-9]+)?)/) || {
-            groups: { version: null },
-        };
-        if (!match.groups || !match.groups.version) {
-            return null;
+        if (tc.find(SWIFT_TOOLNAME, versionSpec)) {
+            yield exportVariables(versionSpec, manifest);
+            return;
         }
-        return match.groups.version;
-    });
-}
-function install(versionSpec, system) {
-    return __awaiter(this, void 0, void 0, function* () {
-        let installDir = tc.find(SWIFT_TOOLNAME, versionSpec);
-        if (!installDir) {
-            core.info(`Version ${versionSpec} was not found in the local cache`);
-            const releaseFile = manifest.resolveReleaseFile(versionSpec, system);
-            core.info(`Version ${versionSpec} is available for downloading`);
-            try {
-                core.info(`Downloading Swift from ${releaseFile.download_url}`);
-                const archivePath = yield tc.downloadTool(releaseFile.download_url);
-                let extractPath = "";
-                switch (system.os) {
-                    case os_1.OS.MacOS:
-                        extractPath = yield tc.extractXar(archivePath);
-                        const pkg = releaseFile.filename.replace(".pkg", "-package.pkg");
-                        extractPath = yield tc.extractTar(path.join(extractPath, pkg, "Payload"));
-                        // const TOOLCHAINS = exec.exec("plutil", ["-extract", 'CFBundleIdentifier', "xml1", `${HOME}/Library/Developer/Toolchains/swift-${{ inputs.tag }}.xctoolchain/Info.plist | xmllint --xpath '//plist/string/text()' -)" >> $GITHUB_ENV
-                        const TOOLCHAINS = "";
-                        core.exportVariable("TOOLCHAINS", TOOLCHAINS);
-                        break;
-                    case os_1.OS.Ubuntu:
-                        yield gpg.importKeys();
-                        core.info(`Downloading signature form ${releaseFile.download_url}.sig`);
-                        const signatureUrl = releaseFile.download_url + ".sig";
-                        const signature = yield tc.downloadTool(signatureUrl);
-                        yield gpg.verify(signature, archivePath);
-                        core.info("Extract downloaded archive");
-                        extractPath = yield tc.extractTar(archivePath);
-                        break;
-                    case os_1.OS.Windows:
-                        break;
-                    default:
-                        break;
-                }
-                yield tc.cacheDir(extractPath, SWIFT_TOOLNAME, versionSpec);
+        core.info(`Version ${versionSpec} was not found in the local cache`);
+        try {
+            let archivePath = yield tc.downloadTool(manifest.download_url);
+            let extractPath = "";
+            switch (manifest.platform) {
+                case "xcode":
+                    archivePath = yield tc.extractXar(archivePath);
+                    const dest = path.join(archivePath, path.parse(manifest.filename).name);
+                    archivePath = path.join(archivePath, manifest.filename.replace(".pkg", "-package.pkg"), "Payload");
+                    extractPath = yield tc.extractTar(archivePath, dest);
+                    break;
+                case "ubuntu":
+                    yield gpg.importKeys();
+                    // core.info(`Downloading signature form ${manifest.download_url}.sig`);
+                    const signatureUrl = manifest.download_url + ".sig";
+                    const signature = yield tc.downloadTool(signatureUrl);
+                    yield gpg.verify(signature, archivePath);
+                    extractPath = yield tc.extractTar(archivePath);
+                    break;
+                case "windows":
+                    break;
+                default:
+                    break;
             }
-            catch (err) {
-                if (err instanceof tc.HTTPError) {
-                    core.info(err.message);
-                    if (err.stack) {
-                        core.debug(err.stack);
-                    }
+            yield tc.cacheDir(extractPath, SWIFT_TOOLNAME, versionSpec);
+        }
+        catch (err) {
+            if (err instanceof tc.HTTPError) {
+                core.info(err.message);
+                if (err.stack) {
+                    core.debug(err.stack);
                 }
-                throw err;
             }
-            installDir = tc.find(SWIFT_TOOLNAME, versionSpec);
+            throw err;
         }
-        if (!installDir) {
-            throw new Error([
-                `Version ${versionSpec} with platform ${system.name} not found`,
-                `The list of all available versions can be found here: https://www.swift.org/download`,
-            ].join(os.EOL));
-        }
-        if (system.os === os_1.OS.MacOS) {
-            // TOOLCHAINS =
-        }
-        const binDir = path.join(installDir, "/usr/bin");
-        core.addPath(installDir);
-        core.addPath(binDir);
-        const swiftPath = path.join(binDir, "swift");
-        const swiftVersion = yield versionFromPath(swiftPath);
-        core.setOutput("swift-version", swiftVersion);
-        core.setOutput("swift-path", swiftPath);
-        core.info(`Successfully set up Swift (${swiftVersion})`);
     });
 }
 exports.install = install;
+function exportVariables(versionSpec, manifest) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const installDir = tc.find(SWIFT_TOOLNAME, versionSpec);
+        if (!installDir) {
+            throw new Error([
+                `Version ${versionSpec} with platform ${manifest.platform}${manifest.platform_version || ""} not found`,
+                `The list of all available versions can be found here: https://www.swift.org/download`,
+            ].join(os.EOL));
+        }
+        let SWIFT_VERSION = "";
+        switch (manifest.platform) {
+            case "xcode":
+                const plist = path.join(installDir, "Info.plist");
+                core.debug(`Extracting TOOLCHAINS from ${plist}...`);
+                const TOOLCHAINS = yield utils.extractToolChainsFromPropertyList(plist);
+                core.exportVariable("TOOLCHAINS", TOOLCHAINS);
+                SWIFT_VERSION = yield utils.extractCommandLineMessage("xcrun", [
+                    "--toolchain",
+                    TOOLCHAINS,
+                    "--run",
+                    "swift",
+                    "--version",
+                ]);
+                SWIFT_VERSION = utils.extractSwiftVersionFromMessage(SWIFT_VERSION);
+                break;
+            case "ubuntu":
+                const SWIFT_PLATFORM = `${manifest.platform}${manifest.platform_version || ""}`;
+                SWIFT_VERSION = `swift-${versionSpec}-RELEASE-${SWIFT_PLATFORM}`;
+                const binDir = path.join(installDir, SWIFT_VERSION, "/usr/bin");
+                core.addPath(path.join(installDir, SWIFT_VERSION));
+                core.addPath(binDir);
+                const SWIFT_PATH = path.join(binDir, "swift");
+                SWIFT_VERSION = yield utils.extractCommandLineMessage(SWIFT_PATH, [
+                    "--version",
+                ]);
+                break;
+            default:
+                break;
+        }
+        core.setOutput("swift-version", SWIFT_VERSION);
+        core.info(`Successfully set up Swift (${SWIFT_VERSION})`);
+    });
+}
 
 
 /***/ }),
@@ -16393,10 +16369,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.run = void 0;
 const core = __importStar(__nccwpck_require__(2186));
-const tc = __importStar(__nccwpck_require__(7784));
 const manifest = __importStar(__nccwpck_require__(1635));
 const installer = __importStar(__nccwpck_require__(2574));
-const os_1 = __nccwpck_require__(7332);
+const system_1 = __nccwpck_require__(4300);
 function getVersion() {
     let versionSpec = core.getInput("swift-version");
     return versionSpec;
@@ -16404,14 +16379,14 @@ function getVersion() {
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let system = yield (0, os_1.getSystem)();
+            let system = yield (0, system_1.getSystem)();
             let inputVersion = getVersion();
             if (inputVersion.length === 0) {
                 core.warning("The `swift-version` input is not set. The latest version of Swift will be used.");
             }
-            let versions = manifest.VERSIONS_LIST.filter(([_, os]) => os.includes(system.os)).map(([version, _]) => version);
-            const versionSpec = tc.evaluateVersions(versions, inputVersion);
-            yield installer.install(versionSpec, system);
+            const versionSpec = manifest.evaluateVersion(inputVersion, system);
+            const release = manifest.resolveReleaseFile(versionSpec, system);
+            yield installer.install(versionSpec, release);
         }
         catch (err) {
             core.setFailed(err.message);
@@ -16452,29 +16427,184 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.verify = exports.getSemanticVersion = exports.VERSIONS_LIST = exports.resolveReleaseFile = void 0;
+exports.evaluateVersion = exports.resolveReleaseFile = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const tc = __importStar(__nccwpck_require__(7784));
 const semver = __importStar(__nccwpck_require__(1383));
-const os_1 = __nccwpck_require__(7332);
+const os = __importStar(__nccwpck_require__(612));
+const system_1 = __nccwpck_require__(4300);
 const SWIFT_WEBROOT = "https://download.swift.org";
+const VERSIONS_LIST = [
+    ["5.7.1", system_1.OS.all()],
+    ["5.7", [system_1.OS.MacOS, system_1.OS.Ubuntu]],
+    ["5.6.3", system_1.OS.all()],
+    ["5.6.2", system_1.OS.all()],
+    ["5.6.1", system_1.OS.all()],
+    ["5.6", system_1.OS.all()],
+    ["5.5.3", system_1.OS.all()],
+    ["5.5.2", system_1.OS.all()],
+    ["5.5.1", system_1.OS.all()],
+    ["5.5", system_1.OS.all()],
+    ["5.4.3", system_1.OS.all()],
+    ["5.4.2", system_1.OS.all()],
+    ["5.4.1", system_1.OS.all()],
+    ["5.4", system_1.OS.all()],
+    ["5.3.3", system_1.OS.all()],
+    ["5.3.2", system_1.OS.all()],
+    ["5.3.1", system_1.OS.all()],
+    ["5.3", system_1.OS.all()],
+    ["5.2.5", [system_1.OS.Ubuntu]],
+    ["5.2.4", [system_1.OS.MacOS, system_1.OS.Ubuntu]],
+    ["5.2.3", [system_1.OS.Ubuntu]],
+    ["5.2.2", [system_1.OS.MacOS, system_1.OS.Ubuntu]],
+    ["5.2.1", [system_1.OS.Ubuntu]],
+    ["5.2", [system_1.OS.MacOS, system_1.OS.Ubuntu]],
+    ["5.1.5", [system_1.OS.Ubuntu]],
+    ["5.1.4", [system_1.OS.Ubuntu]],
+    ["5.1.3", [system_1.OS.MacOS, system_1.OS.Ubuntu]],
+    ["5.1.2", [system_1.OS.MacOS, system_1.OS.Ubuntu]],
+    ["5.1.1", [system_1.OS.Ubuntu]],
+    ["5.1", [system_1.OS.MacOS, system_1.OS.Ubuntu]],
+    ["5.0.3", [system_1.OS.Ubuntu]],
+    ["5.0.2", [system_1.OS.Ubuntu]],
+    ["5.0.1", [system_1.OS.MacOS, system_1.OS.Ubuntu]],
+    ["5.0", [system_1.OS.MacOS, system_1.OS.Ubuntu]],
+    ["4.2.4", [system_1.OS.Ubuntu]],
+    ["4.2.3", [system_1.OS.Ubuntu]],
+    ["4.2.2", [system_1.OS.Ubuntu]],
+    ["4.2.1", [system_1.OS.MacOS, system_1.OS.Ubuntu]],
+    ["4.2", [system_1.OS.MacOS, system_1.OS.Ubuntu]],
+    ["4.1.3", [system_1.OS.Ubuntu]],
+    ["4.1.2", [system_1.OS.MacOS, system_1.OS.Ubuntu]],
+    ["4.1.1", [system_1.OS.Ubuntu]],
+    ["4.1", [system_1.OS.MacOS, system_1.OS.Ubuntu]],
+    ["4.0.3", [system_1.OS.MacOS, system_1.OS.Ubuntu]],
+    ["4.0.2", [system_1.OS.MacOS, system_1.OS.Ubuntu]],
+    ["4.0", [system_1.OS.MacOS, system_1.OS.Ubuntu]],
+    ["3.1.1", [system_1.OS.MacOS, system_1.OS.Ubuntu]],
+    ["3.1", [system_1.OS.MacOS, system_1.OS.Ubuntu]],
+    ["3.0.2", [system_1.OS.MacOS, system_1.OS.Ubuntu]],
+    ["3.0.1", [system_1.OS.MacOS, system_1.OS.Ubuntu]],
+    ["3.0", [system_1.OS.MacOS, system_1.OS.Ubuntu]],
+    ["2.2.1", [system_1.OS.MacOS, system_1.OS.Ubuntu]],
+    ["2.2", [system_1.OS.MacOS, system_1.OS.Ubuntu]],
+];
+const MANIFEST = [
+    {
+        version: "3.12.0-alpha.1",
+        stable: false,
+        release_url: "https://github.com/actions/python-versions/releases/tag/3.12.0-alpha.1-3427281458",
+        files: [
+            {
+                filename: "python-3.12.0-alpha.1-darwin-x64.tar.gz",
+                arch: "x64",
+                platform: "darwin",
+                download_url: "https://github.com/actions/python-versions/releases/download/3.12.0-alpha.1-3427281458/python-3.12.0-alpha.1-darwin-x64.tar.gz",
+            },
+            {
+                filename: "python-3.12.0-alpha.1-linux-18.04-x64.tar.gz",
+                arch: "x64",
+                platform: "linux",
+                platform_version: "18.04",
+                download_url: "https://github.com/actions/python-versions/releases/download/3.12.0-alpha.1-3427281458/python-3.12.0-alpha.1-linux-18.04-x64.tar.gz",
+            },
+            {
+                filename: "python-3.12.0-alpha.1-linux-20.04-x64.tar.gz",
+                arch: "x64",
+                platform: "linux",
+                platform_version: "20.04",
+                download_url: "https://github.com/actions/python-versions/releases/download/3.12.0-alpha.1-3427281458/python-3.12.0-alpha.1-linux-20.04-x64.tar.gz",
+            },
+            {
+                filename: "python-3.12.0-alpha.1-linux-22.04-x64.tar.gz",
+                arch: "x64",
+                platform: "linux",
+                platform_version: "22.04",
+                download_url: "https://github.com/actions/python-versions/releases/download/3.12.0-alpha.1-3427281458/python-3.12.0-alpha.1-linux-22.04-x64.tar.gz",
+            },
+            {
+                filename: "python-3.12.0-alpha.1-win32-x64.zip",
+                arch: "x64",
+                platform: "win32",
+                download_url: "https://github.com/actions/python-versions/releases/download/3.12.0-alpha.1-3427281458/python-3.12.0-alpha.1-win32-x64.zip",
+            },
+            {
+                filename: "python-3.12.0-alpha.1-win32-x86.zip",
+                arch: "x86",
+                platform: "win32",
+                download_url: "https://github.com/actions/python-versions/releases/download/3.12.0-alpha.1-3427281458/python-3.12.0-alpha.1-win32-x86.zip",
+            },
+        ],
+    },
+    {
+        version: "3.11.0",
+        stable: true,
+        release_url: "https://github.com/actions/python-versions/releases/tag/3.11.0-3328127706",
+        files: [
+            {
+                filename: "python-3.11.0-darwin-x64.tar.gz",
+                arch: "x64",
+                platform: "darwin",
+                download_url: "https://github.com/actions/python-versions/releases/download/3.11.0-3328127706/python-3.11.0-darwin-x64.tar.gz",
+            },
+            {
+                filename: "python-3.11.0-linux-18.04-x64.tar.gz",
+                arch: "x64",
+                platform: "linux",
+                platform_version: "18.04",
+                download_url: "https://github.com/actions/python-versions/releases/download/3.11.0-3328127706/python-3.11.0-linux-18.04-x64.tar.gz",
+            },
+            {
+                filename: "python-3.11.0-linux-20.04-x64.tar.gz",
+                arch: "x64",
+                platform: "linux",
+                platform_version: "20.04",
+                download_url: "https://github.com/actions/python-versions/releases/download/3.11.0-3328127706/python-3.11.0-linux-20.04-x64.tar.gz",
+            },
+            {
+                filename: "python-3.11.0-linux-22.04-x64.tar.gz",
+                arch: "x64",
+                platform: "linux",
+                platform_version: "22.04",
+                download_url: "https://github.com/actions/python-versions/releases/download/3.11.0-3328127706/python-3.11.0-linux-22.04-x64.tar.gz",
+            },
+            {
+                filename: "python-3.11.0-win32-x64.zip",
+                arch: "x64",
+                platform: "win32",
+                download_url: "https://github.com/actions/python-versions/releases/download/3.11.0-3328127706/python-3.11.0-win32-x64.zip",
+            },
+            {
+                filename: "python-3.11.0-win32-x86.zip",
+                arch: "x86",
+                platform: "win32",
+                download_url: "https://github.com/actions/python-versions/releases/download/3.11.0-3328127706/python-3.11.0-win32-x86.zip",
+            },
+        ],
+    },
+];
+//download.swift.org/swift-5.7.1-release/ubuntu2204/swift-5.7.1-RELEASE/swift-5.7.1-RELEASE-ubuntu22.04.tar.gz
+//download.swift.org/swift-5.7.1-release/ubuntu2204-aarch64/swift-5.7.1-RELEASE/swift-5.7.1-RELEASE-ubuntu22.04-aarch64.tar.gz
+//download.swift.org/swift-5.7.1-release/xcode/swift-5.7.1-RELEASE/swift-5.7.1-RELEASE-osx.pkg
 function resolveReleaseFile(versionSpec, system) {
     let platform;
     let platformVersion;
     let filename;
     switch (system.os) {
-        case os_1.OS.MacOS:
+        case system_1.OS.MacOS:
             platform = "xcode";
             filename = `swift-${versionSpec}-RELEASE-osx.pkg`;
             break;
-        case os_1.OS.Ubuntu:
-            platform = `ubuntu${system.version.replace(/\D/g, "")}`;
-            platformVersion = system.version.replace(/\D/g, "");
+        case system_1.OS.Ubuntu:
+            core.info(`${os.arch()}, ${os.platform()}, ${os.release()}, ${os.version()}`);
+            platform = `ubuntu`;
+            platformVersion = system.version;
             filename = `swift-${versionSpec}-RELEASE-${platform}${platformVersion}.tar.gz`;
             break;
-        case os_1.OS.Windows:
-            platform = "windows10";
-            filename = `swift-${versionSpec}-RELEASE-windows10.exe`;
+        case system_1.OS.Windows:
+            platform = "windows";
+            platformVersion = "10";
+            filename = `swift-${versionSpec}-RELEASE-${platform}${platformVersion}.exe`;
             break;
         default:
             throw new Error("Cannot create release file for an unsupported OS");
@@ -16485,88 +16615,28 @@ function resolveReleaseFile(versionSpec, system) {
         filename: filename,
         platform: platform,
         platform_version: platformVersion,
-        arch: "string",
+        arch: process.arch,
         download_url: `${SWIFT_WEBDIR}/swift-${versionSpec}-RELEASE/${filename}`,
     };
 }
 exports.resolveReleaseFile = resolveReleaseFile;
-exports.VERSIONS_LIST = [
-    ["5.7", [os_1.OS.MacOS, os_1.OS.Ubuntu]],
-    ["5.6.3", os_1.OS.all()],
-    ["5.6.2", os_1.OS.all()],
-    ["5.6.1", os_1.OS.all()],
-    ["5.6", os_1.OS.all()],
-    ["5.5.3", os_1.OS.all()],
-    ["5.5.2", os_1.OS.all()],
-    ["5.5.1", os_1.OS.all()],
-    ["5.5", os_1.OS.all()],
-    ["5.4.3", os_1.OS.all()],
-    ["5.4.2", os_1.OS.all()],
-    ["5.4.1", os_1.OS.all()],
-    ["5.4", os_1.OS.all()],
-    ["5.3.3", os_1.OS.all()],
-    ["5.3.2", os_1.OS.all()],
-    ["5.3.1", os_1.OS.all()],
-    ["5.3", os_1.OS.all()],
-    ["5.2.5", [os_1.OS.Ubuntu]],
-    ["5.2.4", [os_1.OS.MacOS, os_1.OS.Ubuntu]],
-    ["5.2.3", [os_1.OS.Ubuntu]],
-    ["5.2.2", [os_1.OS.MacOS, os_1.OS.Ubuntu]],
-    ["5.2.1", [os_1.OS.Ubuntu]],
-    ["5.2", [os_1.OS.MacOS, os_1.OS.Ubuntu]],
-    ["5.1.5", [os_1.OS.Ubuntu]],
-    ["5.1.4", [os_1.OS.Ubuntu]],
-    ["5.1.3", [os_1.OS.MacOS, os_1.OS.Ubuntu]],
-    ["5.1.2", [os_1.OS.MacOS, os_1.OS.Ubuntu]],
-    ["5.1.1", [os_1.OS.Ubuntu]],
-    ["5.1", [os_1.OS.MacOS, os_1.OS.Ubuntu]],
-    ["5.0.3", [os_1.OS.Ubuntu]],
-    ["5.0.2", [os_1.OS.Ubuntu]],
-    ["5.0.1", [os_1.OS.MacOS, os_1.OS.Ubuntu]],
-    ["5.0", [os_1.OS.MacOS, os_1.OS.Ubuntu]],
-    ["4.2.4", [os_1.OS.Ubuntu]],
-    ["4.2.3", [os_1.OS.Ubuntu]],
-    ["4.2.2", [os_1.OS.Ubuntu]],
-    ["4.2.1", [os_1.OS.MacOS, os_1.OS.Ubuntu]],
-    ["4.2", [os_1.OS.MacOS, os_1.OS.Ubuntu]],
-    ["4.1.3", [os_1.OS.Ubuntu]],
-    ["4.1.2", [os_1.OS.MacOS, os_1.OS.Ubuntu]],
-    ["4.1.1", [os_1.OS.Ubuntu]],
-    ["4.1", [os_1.OS.MacOS, os_1.OS.Ubuntu]],
-    ["4.0.3", [os_1.OS.MacOS, os_1.OS.Ubuntu]],
-    ["4.0.2", [os_1.OS.MacOS, os_1.OS.Ubuntu]],
-    ["4.0", [os_1.OS.MacOS, os_1.OS.Ubuntu]],
-    ["3.1.1", [os_1.OS.MacOS, os_1.OS.Ubuntu]],
-    ["3.1", [os_1.OS.MacOS, os_1.OS.Ubuntu]],
-    ["3.0.2", [os_1.OS.MacOS, os_1.OS.Ubuntu]],
-    ["3.0.1", [os_1.OS.MacOS, os_1.OS.Ubuntu]],
-    ["3.0", [os_1.OS.MacOS, os_1.OS.Ubuntu]],
-    ["2.2.1", [os_1.OS.MacOS, os_1.OS.Ubuntu]],
-    ["2.2", [os_1.OS.MacOS, os_1.OS.Ubuntu]],
-];
-const AVAILABLE_VERSIONS = exports.VERSIONS_LIST.map(([version, os]) => {
-    const semverVersion = semver.coerce(version);
-    return [semverVersion, os];
-});
-function getSemanticVersion(version, system) {
-    return verify(version, system);
-}
-exports.getSemanticVersion = getSemanticVersion;
-function verify(version, system) {
-    let versions = exports.VERSIONS_LIST.filter(([_, os]) => os.includes(system.os)).map(([version, _]) => version);
-    let matchingVersion = tc.evaluateVersions(versions, version);
-    if (matchingVersion === null) {
-        throw new Error(`Version "${version}" is not available`);
+function evaluateVersion(version, system) {
+    let range = semver.validRange(version);
+    if (range === null) {
+        throw new Error("Version range is invalid");
     }
-    core.debug(`Found matching version ${matchingVersion}`);
-    return matchingVersion;
+    let versions = VERSIONS_LIST.filter(([_, os]) => os.includes(system.os)).map(([version, _]) => semver.coerce(version).version);
+    const semanticVersion = semver.coerce(tc.evaluateVersions(versions, version));
+    return !semanticVersion
+        ? ""
+        : `${semanticVersion.major}.${semanticVersion.minor}${semanticVersion.patch > 0 ? `.${semanticVersion.patch}` : ""}`;
 }
-exports.verify = verify;
+exports.evaluateVersion = evaluateVersion;
 
 
 /***/ }),
 
-/***/ 7332:
+/***/ 4300:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -16642,6 +16712,89 @@ exports.getSystem = getSystem;
 
 /***/ }),
 
+/***/ 1314:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.extractCommandLineMessage = exports.extractToolChainsFromPropertyList = exports.extractSwiftVersionFromMessage = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const exec = __importStar(__nccwpck_require__(1514));
+function extractSwiftVersionFromMessage(message) {
+    const match = message.match(/Swift\ version (?<version>[0-9]+\.[0-9+]+(\.[0-9]+)?)/) || {
+        groups: { version: null },
+    };
+    if (!match.groups || !match.groups.version) {
+        return "";
+    }
+    return match.groups.version || "";
+}
+exports.extractSwiftVersionFromMessage = extractSwiftVersionFromMessage;
+function extractToolChainsFromPropertyList(plist) {
+    return __awaiter(this, void 0, void 0, function* () {
+        return yield extractCommandLineMessage("/usr/libexec/PlistBuddy", [
+            "-c",
+            '"Print CFBundleIdentifier"',
+            plist,
+        ]);
+    });
+}
+exports.extractToolChainsFromPropertyList = extractToolChainsFromPropertyList;
+function extractCommandLineMessage(commandLine, args) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let message = "";
+        const options = {
+            listeners: {
+                stdout: (data) => {
+                    message += data.toString().trim();
+                },
+                stderr: (data) => {
+                    core.error(data.toString().trim());
+                },
+            },
+        };
+        yield exec.exec(commandLine, args, options);
+        return message;
+    });
+}
+exports.extractCommandLineMessage = extractCommandLineMessage;
+
+
+/***/ }),
+
 /***/ 9491:
 /***/ ((module) => {
 
@@ -16703,6 +16856,14 @@ module.exports = require("https");
 
 "use strict";
 module.exports = require("net");
+
+/***/ }),
+
+/***/ 612:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:os");
 
 /***/ }),
 
