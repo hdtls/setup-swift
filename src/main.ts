@@ -1,9 +1,7 @@
-import { EOL } from "os";
 import * as core from "@actions/core";
-import * as tc from "@actions/tool-cache";
 import * as manifest from "./manifest";
 import * as installer from "./installer";
-import { System, OS, getSystem } from "./os";
+import { getSystem } from "./os";
 
 function getVersion(): string {
   let versionSpec = core.getInput("swift-version");
@@ -21,11 +19,7 @@ export async function run() {
       );
     }
 
-    let versions = manifest.VERSIONS_LIST.filter(([_, os]) =>
-      os.includes(system.os)
-    ).map(([version, _]) => version);
-
-    const versionSpec = tc.evaluateVersions(versions, inputVersion);
+    const versionSpec = manifest.evaluateVersion(inputVersion, system);
 
     await installer.install(versionSpec, system);
   } catch (err) {
