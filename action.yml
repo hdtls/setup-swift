@@ -11,4 +11,4 @@ outputs:
     description: The full Swift version that was configured
 runs:
   using: node16
-  main: dist/index.js
+  main: dist/setup/index.js
