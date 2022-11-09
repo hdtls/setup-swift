@@ -41,10 +41,10 @@ async function versionFromPath(commandLine: string) {
 
 export async function install(versionSpec: string, system: System) {
   let installDir = tc.find(SWIFT_TOOLNAME, versionSpec);
+  const releaseFile = manifest.resolveReleaseFile(versionSpec, system);
 
   if (!installDir) {
     core.info(`Version ${versionSpec} was not found in the local cache`);
-    const releaseFile = manifest.resolveReleaseFile(versionSpec, system);
     core.info(`Version ${versionSpec} is available for downloading`);
 
     try {
@@ -111,8 +111,10 @@ export async function install(versionSpec: string, system: System) {
     // TOOLCHAINS =
   }
 
-  const binDir = path.join(installDir, "/usr/bin");
-  core.addPath(installDir);
+  core.info(`installDir: ${installDir}`);
+
+  const binDir = path.join(installDir, releaseFile.filename, "/usr/bin");
+  core.addPath(path.join(installDir, releaseFile.filename));
   core.addPath(binDir);
 
   const swiftPath = path.join(binDir, "swift");
