@@ -16,11 +16,8 @@ export function extractSwiftVersionFromMessage(message: string): string {
 }
 
 export async function extractToolChainsFromPropertyList(plist: string) {
-  return await extractCommandLineMessage("/usr/libexec/PlistBuddy", [
-    "-c",
-    '"Print CFBundleIdentifier"',
-    plist,
-  ]);
+  const commandLine = `plutil -extract 'CFBundleIdentifier' xml1 ${plist} | xmllint --xpath '//plist/string/text()' -`;
+  return await extractCommandLineMessage(commandLine);
 }
 
 export async function extractCommandLineMessage(
