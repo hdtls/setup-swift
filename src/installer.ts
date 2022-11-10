@@ -11,6 +11,14 @@ export async function install(
   versionSpec: string,
   manifest: tc.IToolReleaseFile
 ) {
+  await utils.extractCommandLineMessage("ls", [
+    "/Users/runner/hostedtoolcache/node/16.18.0/x64",
+  ]);
+
+  await utils.extractCommandLineMessage("ls", [
+    "/Users/runner/hostedtoolcache/swift/5.7.1/x64",
+  ]);
+
   if (tc.find(SWIFT_TOOLNAME, versionSpec)) {
     await exportVariables(versionSpec, manifest);
     return;
@@ -82,10 +90,17 @@ async function exportVariables(
     );
   }
 
-  let SWIFT_VERSION = "";
+  const SWIFT_PLATFORM = `${manifest.platform}${
+    manifest.platform_version || ""
+  }`;
+
+  let SWIFT_VERSION = `swift-${versionSpec}-RELEASE-${SWIFT_PLATFORM}`;
+
   switch (manifest.platform) {
     case "xcode":
-      const plist = path.join(installDir, "Info.plist");
+      await utils.extractCommandLineMessage("ls", [path.join(installDir, SWIFT_VERSION)])
+      
+      const plist = path.join(installDir, SWIFT_VERSION, "Info.plist");
       core.debug(`Extracting TOOLCHAINS from ${plist}...`);
       const TOOLCHAINS = await utils.extractToolChainsFromPropertyList(plist);
       core.exportVariable("TOOLCHAINS", TOOLCHAINS);
@@ -100,20 +115,15 @@ async function exportVariables(
       SWIFT_VERSION = utils.extractSwiftVersionFromMessage(SWIFT_VERSION);
       break;
     case "ubuntu":
-      const SWIFT_PLATFORM = `${manifest.platform}${
-        manifest.platform_version || ""
-      }`;
-      SWIFT_VERSION = `swift-${versionSpec}-RELEASE-${SWIFT_PLATFORM}`;
-
       const binDir = path.join(installDir, SWIFT_VERSION, "/usr/bin");
 
       core.addPath(path.join(installDir, SWIFT_VERSION));
       core.addPath(binDir);
 
-      const SWIFT_PATH = path.join(binDir, "swift");
-      SWIFT_VERSION = await utils.extractCommandLineMessage(SWIFT_PATH, [
-        "--version",
-      ]);
+      SWIFT_VERSION = await utils.extractCommandLineMessage(
+        path.join(binDir, "swift"),
+        ["--version"]
+      );
       break;
     default:
       break;

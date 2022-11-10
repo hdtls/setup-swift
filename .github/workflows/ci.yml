@@ -9,19 +9,19 @@ on:
       - main
 
 jobs:
-  unit-test:
-    name: Unit tests
-    runs-on: macos-latest
-    steps:
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 16
+  # unit-test:
+  #   name: Unit tests
+  #   runs-on: macos-latest
+  #   steps:
+  #     - uses: actions/setup-node@v3
+  #       with:
+  #         node-version: 16
 
-      - uses: actions/checkout@v3
-      - run: |
-          yarn install
-          yarn run format-check
-          yarn test
+  #     - uses: actions/checkout@v3
+  #     - run: |
+  #         yarn install
+  #         yarn run format-check
+  #         yarn test
 
   integration-test:
     name: Install Swift ${{ matrix.swift-version }} on ${{ matrix.os }}
@@ -33,16 +33,16 @@ jobs:
     steps:
       - uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 18
 
       - uses: actions/checkout@v3
       - run: |
           yarn install
           yarn build
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-python@v4
         with:
-          node-version: 16
+          python-version: 3.10
 
       - run: |
           if which swift >/dev/null; then
