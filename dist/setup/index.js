@@ -16250,18 +16250,31 @@ function install(versionSpec, manifest) {
             let extractPath = "";
             switch (manifest.platform) {
                 case "xcode":
-                    archivePath = yield tc.extractXar(archivePath);
-                    const dest = path.join(archivePath, path.parse(manifest.filename).name);
-                    archivePath = path.join(archivePath, manifest.filename.replace(".pkg", "-package.pkg"), "Payload");
-                    extractPath = yield tc.extractTar(archivePath, dest);
+                    extractPath = yield tc.extractXar(archivePath);
+                    archivePath = path.join(extractPath, manifest.filename.replace(".pkg", "-package.pkg"), "Payload");
+                    extractPath = yield tc.extractTar(archivePath);
+                    // await utils.extractCommandLineMessage("installer", [
+                    //   "-pkg",
+                    //   archivePath,
+                    //   "-target",
+                    //   "CurrentUserHomeDirectory",
+                    // ]);
+                    // extractPath = path.join(
+                    //   os.homedir(),
+                    //   "Library",
+                    //   "Developer",
+                    //   "Toolchains"
+                    // );
                     break;
                 case "ubuntu":
+                    archivePath = yield tc.downloadTool(manifest.download_url);
                     yield gpg.importKeys();
                     // core.info(`Downloading signature form ${manifest.download_url}.sig`);
                     const signatureUrl = manifest.download_url + ".sig";
                     const signature = yield tc.downloadTool(signatureUrl);
                     yield gpg.verify(signature, archivePath);
                     extractPath = yield tc.extractTar(archivePath);
+                    extractPath = path.join(extractPath, `swift-${versionSpec}-RELEASE-${manifest.platform}${manifest.platform_version || ""}`);
                     break;
                 case "windows":
                     break;
@@ -16269,6 +16282,7 @@ function install(versionSpec, manifest) {
                     break;
             }
             yield tc.cacheDir(extractPath, SWIFT_TOOLNAME, versionSpec);
+            yield exportVariables(versionSpec, manifest);
         }
         catch (err) {
             if (err instanceof tc.HTTPError) {
@@ -16292,35 +16306,27 @@ function exportVariables(versionSpec, manifest) {
             ].join(os.EOL));
         }
         let SWIFT_VERSION = "";
+        let SWIFT_PATH = path.join(installDir, "/usr/bin");
+        core.addPath(SWIFT_PATH);
         switch (manifest.platform) {
             case "xcode":
-                const plist = path.join(installDir, "Info.plist");
-                core.debug(`Extracting TOOLCHAINS from ${plist}...`);
-                const TOOLCHAINS = yield utils.extractToolChainsFromPropertyList(plist);
+                const TOOLCHAINS = `swift-${versionSpec}-RELEASE`;
                 core.exportVariable("TOOLCHAINS", TOOLCHAINS);
                 SWIFT_VERSION = yield utils.extractCommandLineMessage("xcrun", [
                     "--toolchain",
-                    TOOLCHAINS,
+                    `"${TOOLCHAINS}"`,
                     "--run",
                     "swift",
                     "--version",
                 ]);
-                SWIFT_VERSION = utils.extractSwiftVersionFromMessage(SWIFT_VERSION);
                 break;
             case "ubuntu":
-                const SWIFT_PLATFORM = `${manifest.platform}${manifest.platform_version || ""}`;
-                SWIFT_VERSION = `swift-${versionSpec}-RELEASE-${SWIFT_PLATFORM}`;
-                const binDir = path.join(installDir, SWIFT_VERSION, "/usr/bin");
-                core.addPath(path.join(installDir, SWIFT_VERSION));
-                core.addPath(binDir);
-                const SWIFT_PATH = path.join(binDir, "swift");
-                SWIFT_VERSION = yield utils.extractCommandLineMessage(SWIFT_PATH, [
-                    "--version",
-                ]);
+                SWIFT_VERSION = yield utils.extractCommandLineMessage(path.join(SWIFT_PATH, "swift"), ["--version"]);
                 break;
             default:
                 break;
         }
+        SWIFT_VERSION = utils.extractSwiftVersionFromMessage(SWIFT_VERSION);
         core.setOutput("swift-version", SWIFT_VERSION);
         core.info(`Successfully set up Swift (${SWIFT_VERSION})`);
     });
@@ -16372,25 +16378,16 @@ const core = __importStar(__nccwpck_require__(2186));
 const manifest = __importStar(__nccwpck_require__(1635));
 const installer = __importStar(__nccwpck_require__(2574));
 const system_1 = __nccwpck_require__(4300);
-function getVersion() {
-    let versionSpec = core.getInput("swift-version");
-    return versionSpec;
-}
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
-        try {
-            let system = yield (0, system_1.getSystem)();
-            let inputVersion = getVersion();
-            if (inputVersion.length === 0) {
-                core.warning("The `swift-version` input is not set. The latest version of Swift will be used.");
-            }
-            const versionSpec = manifest.evaluateVersion(inputVersion, system);
-            const release = manifest.resolveReleaseFile(versionSpec, system);
-            yield installer.install(versionSpec, release);
+        let system = yield (0, system_1.getSystem)();
+        let inputVersion = core.getInput("swift-version");
+        if (inputVersion.length === 0) {
+            core.warning("The `swift-version` input is not set. The latest version of Swift will be used.");
         }
-        catch (err) {
-            core.setFailed(err.message);
-        }
+        const versionSpec = manifest.evaluateVersion(inputVersion, system);
+        const release = manifest.resolveReleaseFile(versionSpec, system);
+        yield installer.install(versionSpec, release);
     });
 }
 exports.run = run;
@@ -16750,7 +16747,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.extractCommandLineMessage = exports.extractToolChainsFromPropertyList = exports.extractSwiftVersionFromMessage = void 0;
+exports.extractCommandLineMessage = exports.extractSwiftVersionFromMessage = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const exec = __importStar(__nccwpck_require__(1514));
 function extractSwiftVersionFromMessage(message) {
@@ -16763,16 +16760,6 @@ function extractSwiftVersionFromMessage(message) {
     return match.groups.version || "";
 }
 exports.extractSwiftVersionFromMessage = extractSwiftVersionFromMessage;
-function extractToolChainsFromPropertyList(plist) {
-    return __awaiter(this, void 0, void 0, function* () {
-        return yield extractCommandLineMessage("/usr/libexec/PlistBuddy", [
-            "-c",
-            '"Print CFBundleIdentifier"',
-            plist,
-        ]);
-    });
-}
-exports.extractToolChainsFromPropertyList = extractToolChainsFromPropertyList;
 function extractCommandLineMessage(commandLine, args) {
     return __awaiter(this, void 0, void 0, function* () {
         let message = "";
