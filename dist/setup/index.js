@@ -16237,6 +16237,7 @@ const path = __importStar(__nccwpck_require__(1017));
 const tc = __importStar(__nccwpck_require__(7784));
 const gpg = __importStar(__nccwpck_require__(3759));
 const utils = __importStar(__nccwpck_require__(1314));
+const fs = __importStar(__nccwpck_require__(3292));
 const SWIFT_TOOLNAME = "swift";
 function install(versionSpec, manifest) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -16311,6 +16312,7 @@ function exportVariables(versionSpec, manifest) {
         switch (manifest.platform) {
             case "xcode":
                 const TOOLCHAINS = `swift-${versionSpec}-RELEASE`;
+                yield fs.symlink(installDir, `~/Library/Developer/Toolchains/${TOOLCHAINS}.xctoolchain`);
                 core.exportVariable("TOOLCHAINS", TOOLCHAINS);
                 SWIFT_VERSION = yield utils.extractCommandLineMessage("xcrun", [
                     "--toolchain",
@@ -16373,24 +16375,29 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.run = void 0;
+exports.main = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const manifest = __importStar(__nccwpck_require__(1635));
 const installer = __importStar(__nccwpck_require__(2574));
 const system_1 = __nccwpck_require__(4300);
-function run() {
+function main() {
     return __awaiter(this, void 0, void 0, function* () {
-        let system = yield (0, system_1.getSystem)();
-        let inputVersion = core.getInput("swift-version");
-        if (inputVersion.length === 0) {
-            core.warning("The `swift-version` input is not set. The latest version of Swift will be used.");
+        try {
+            let system = yield (0, system_1.getSystem)();
+            const inputVersion = core.getInput("swift-version");
+            if (inputVersion.length === 0) {
+                core.warning("The `swift-version` input is not set. The latest version of Swift will be used.");
+            }
+            const versionSpec = manifest.evaluateVersion(inputVersion, system);
+            const release = manifest.resolveReleaseFile(versionSpec, system);
+            yield installer.install(versionSpec, release);
         }
-        const versionSpec = manifest.evaluateVersion(inputVersion, system);
-        const release = manifest.resolveReleaseFile(versionSpec, system);
-        yield installer.install(versionSpec, release);
+        catch (err) {
+            core.setFailed(err.message);
+        }
     });
 }
-exports.run = run;
+exports.main = main;
 
 
 /***/ }),
@@ -16822,6 +16829,14 @@ module.exports = require("fs");
 
 /***/ }),
 
+/***/ 3292:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("fs/promises");
+
+/***/ }),
+
 /***/ 3685:
 /***/ ((module) => {
 
@@ -16964,7 +16979,7 @@ var exports = __webpack_exports__;
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const main_1 = __nccwpck_require__(399);
-(0, main_1.run)();
+(0, main_1.main)();
 
 })();
 

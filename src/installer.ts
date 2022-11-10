@@ -4,6 +4,7 @@ import * as path from "path";
 import * as tc from "@actions/tool-cache";
 import * as gpg from "./gpg";
 import * as utils from "./utils";
+import * as fs from "fs/promises";
 
 const SWIFT_TOOLNAME = "swift";
 
@@ -108,6 +109,17 @@ async function exportVariables(
   switch (manifest.platform) {
     case "xcode":
       const TOOLCHAINS = `swift-${versionSpec}-RELEASE`;
+      try {
+        await fs.mkdir(`${os.homedir()}/Library/Developer/Toolchains`);
+
+        await fs.symlink(
+          installDir,
+          `${os.homedir()}/Library/Developer/Toolchains/${TOOLCHAINS}.xctoolchain`
+        );
+      } catch (error) {
+        core.info("fs error");
+      }
+
       core.exportVariable("TOOLCHAINS", TOOLCHAINS);
 
       SWIFT_VERSION = await utils.extractCommandLineMessage("xcrun", [
