@@ -71,6 +71,7 @@ export async function install(
     }
 
     await tc.cacheDir(extractPath, SWIFT_TOOLNAME, versionSpec);
+    await exportVariables(versionSpec, manifest);
   } catch (err) {
     if (err instanceof tc.HTTPError) {
       core.info(err.message);
@@ -80,8 +81,6 @@ export async function install(
     }
     throw err;
   }
-
-  await exportVariables(versionSpec, manifest);
 }
 
 async function exportVariables(
