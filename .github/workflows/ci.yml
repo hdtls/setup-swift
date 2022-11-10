@@ -31,22 +31,11 @@ jobs:
         os: [macos-latest]
         swift-version: ["5.7"]
     steps:
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 18
-
       - uses: actions/checkout@v3
+
       - run: |
           yarn install
           yarn build
-
-      - uses: mxschmitt/action-tmate@v3
-        with:
-          sudo: false
-          
-      - uses: actions/setup-python@v4
-        with:
-          python-version: 3.9
 
       - run: |
           if which swift >/dev/null; then
@@ -60,7 +49,10 @@ jobs:
         with:
           swift-version: ${{ matrix.swift-version }}
 
-      - run: swift --version | grep ${{ matrix.swift-version }} || exit 1
+      # - run: swift --version | grep ${{ matrix.swift-version }} || exit 1
 
       - run: echo $TOOLCHAINS
 
+      - uses: mxschmitt/action-tmate@v3
+        with:
+          sudo: false

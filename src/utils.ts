@@ -1,3 +1,4 @@
+import * as assert_1 from "assert";
 import * as core from "@actions/core";
 import * as exec from "@actions/exec";
 
@@ -16,8 +17,11 @@ export function extractSwiftVersionFromMessage(message: string): string {
 }
 
 export async function extractToolChainsFromPropertyList(plist: string) {
-  const commandLine = `plutil -extract 'CFBundleIdentifier' xml1 ${plist} | xmllint --xpath '//plist/string/text()' -`;
-  return await extractCommandLineMessage(commandLine);
+  await extractCommandLineMessage(
+    `echo "TOOLCHAINS=$(plutil -extract 'CFBundleIdentifier' xml1 ${plist} | xmllint --xpath '//plist/string/text()' -)" >> $GITHUB_ENV`
+  );
+
+  return extractCommandLineMessage("echo $TOOLCHAINS");
 }
 
 export async function extractCommandLineMessage(
@@ -39,4 +43,10 @@ export async function extractCommandLineMessage(
   await exec.exec(commandLine, args, options);
 
   return message;
+}
+
+export function getTempDirectory() {
+  const tempDirectory = process.env["RUNNER_TEMP"] || "";
+  assert_1.ok(tempDirectory, "Expected RUNNER_TEMP to be defined");
+  return tempDirectory;
 }

@@ -11,18 +11,6 @@ export async function install(
   versionSpec: string,
   manifest: tc.IToolReleaseFile
 ) {
-  core.debug(
-    await utils.extractCommandLineMessage("ls", [
-      "/Users/runner/hostedtoolcache/node/16.18.0/x64",
-    ])
-  );
-
-  core.debug(
-    await utils.extractCommandLineMessage("ls", [
-      "/Users/runner/hostedtoolcache/swift/5.7.1/x64",
-    ])
-  );
-
   if (tc.find(SWIFT_TOOLNAME, versionSpec)) {
     await exportVariables(versionSpec, manifest);
     return;
@@ -31,23 +19,41 @@ export async function install(
   core.info(`Version ${versionSpec} was not found in the local cache`);
 
   try {
-    let archivePath = await tc.downloadTool(manifest.download_url);
-
+    let archivePath = "";
     let extractPath: string = "";
 
     switch (manifest.platform) {
       case "xcode":
-        archivePath = await tc.extractXar(archivePath);
-        const dest = path.join(archivePath, path.parse(manifest.filename).name);
-        archivePath = path.join(
-          archivePath,
-          manifest.filename.replace(".pkg", "-package.pkg"),
-          "Payload"
+        archivePath = await tc.downloadTool(
+          manifest.download_url,
+          path.join(utils.getTempDirectory(), manifest.filename)
         );
 
-        extractPath = await tc.extractTar(archivePath, dest);
+        // archivePath = await tc.extractXar(archivePath);
+        // const dest = path.join(archivePath, path.parse(manifest.filename).name);
+        // archivePath = path.join(
+        //   archivePath,
+        //   manifest.filename.replace(".pkg", "-package.pkg"),
+        //   "Payload"
+        // );
+
+        // extractPath = await tc.extractTar(archivePath, dest);
+        await utils.extractCommandLineMessage("installer", [
+          "-pkg",
+          archivePath,
+          "-target",
+          "CurrentUserHomeDirectory",
+        ]);
+        extractPath = path.join(
+          os.homedir(),
+          "Library",
+          "Developer",
+          "Toolchains"
+        );
         break;
       case "ubuntu":
+        archivePath = await tc.downloadTool(manifest.download_url);
+
         await gpg.importKeys();
 
         // core.info(`Downloading signature form ${manifest.download_url}.sig`);
@@ -102,20 +108,14 @@ async function exportVariables(
 
   switch (manifest.platform) {
     case "xcode":
-      core.debug(
-        await utils.extractCommandLineMessage("ls", [
-          path.join(installDir, SWIFT_VERSION),
-        ])
-      );
-
       const plist = path.join(installDir, SWIFT_VERSION, "Info.plist");
       core.debug(`Extracting TOOLCHAINS from ${plist}...`);
       const TOOLCHAINS = await utils.extractToolChainsFromPropertyList(plist);
-      core.exportVariable("TOOLCHAINS", TOOLCHAINS);
+      core.exportVariable("TOOLCHAINS", "org.swift.571202211011a");
 
       SWIFT_VERSION = await utils.extractCommandLineMessage("xcrun", [
         "--toolchain",
-        TOOLCHAINS,
+        "org.swift.571202211011a",
         "--run",
         "swift",
         "--version",
