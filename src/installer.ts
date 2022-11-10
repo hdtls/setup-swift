@@ -19,37 +19,32 @@ export async function install(
   core.info(`Version ${versionSpec} was not found in the local cache`);
 
   try {
-    let archivePath = "";
+    let archivePath = await tc.downloadTool(manifest.download_url);
     let extractPath: string = "";
 
     switch (manifest.platform) {
       case "xcode":
-        archivePath = await tc.downloadTool(
-          manifest.download_url,
-          path.join(utils.getTempDirectory(), manifest.filename)
+        extractPath = await tc.extractXar(archivePath);
+
+        archivePath = path.join(
+          extractPath,
+          manifest.filename.replace(".pkg", "-package.pkg"),
+          "Payload"
         );
 
-        // archivePath = await tc.extractXar(archivePath);
-        // const dest = path.join(archivePath, path.parse(manifest.filename).name);
-        // archivePath = path.join(
+        extractPath = await tc.extractTar(archivePath);
+        // await utils.extractCommandLineMessage("installer", [
+        //   "-pkg",
         //   archivePath,
-        //   manifest.filename.replace(".pkg", "-package.pkg"),
-        //   "Payload"
+        //   "-target",
+        //   "CurrentUserHomeDirectory",
+        // ]);
+        // extractPath = path.join(
+        //   os.homedir(),
+        //   "Library",
+        //   "Developer",
+        //   "Toolchains"
         // );
-
-        // extractPath = await tc.extractTar(archivePath, dest);
-        await utils.extractCommandLineMessage("installer", [
-          "-pkg",
-          archivePath,
-          "-target",
-          "CurrentUserHomeDirectory",
-        ]);
-        extractPath = path.join(
-          os.homedir(),
-          "Library",
-          "Developer",
-          "Toolchains"
-        );
         break;
       case "ubuntu":
         archivePath = await tc.downloadTool(manifest.download_url);
@@ -62,6 +57,12 @@ export async function install(
         await gpg.verify(signature, archivePath);
 
         extractPath = await tc.extractTar(archivePath);
+        extractPath = path.join(
+          extractPath,
+          `swift-${versionSpec}-RELEASE-${manifest.platform}${
+            manifest.platform_version || ""
+          }`
+        );
         break;
       case "windows":
         break;
@@ -100,42 +101,35 @@ async function exportVariables(
     );
   }
 
-  const SWIFT_PLATFORM = `${manifest.platform}${
-    manifest.platform_version || ""
-  }`;
+  let SWIFT_VERSION = "";
+  let SWIFT_PATH = path.join(installDir, "/usr/bin");
 
-  let SWIFT_VERSION = `swift-${versionSpec}-RELEASE-${SWIFT_PLATFORM}`;
+  core.addPath(SWIFT_PATH);
 
   switch (manifest.platform) {
     case "xcode":
-      const plist = path.join(installDir, SWIFT_VERSION, "Info.plist");
-      core.debug(`Extracting TOOLCHAINS from ${plist}...`);
-      const TOOLCHAINS = await utils.extractToolChainsFromPropertyList(plist);
-      core.exportVariable("TOOLCHAINS", "org.swift.571202211011a");
+      const TOOLCHAINS = `swift-${versionSpec}-RELEASE`;
+      core.exportVariable("TOOLCHAINS", TOOLCHAINS);
 
       SWIFT_VERSION = await utils.extractCommandLineMessage("xcrun", [
         "--toolchain",
-        "org.swift.571202211011a",
+        `"${TOOLCHAINS}"`,
         "--run",
         "swift",
         "--version",
       ]);
-      SWIFT_VERSION = utils.extractSwiftVersionFromMessage(SWIFT_VERSION);
       break;
     case "ubuntu":
-      const binDir = path.join(installDir, SWIFT_VERSION, "/usr/bin");
-
-      core.addPath(path.join(installDir, SWIFT_VERSION));
-      core.addPath(binDir);
-
       SWIFT_VERSION = await utils.extractCommandLineMessage(
-        path.join(binDir, "swift"),
+        path.join(SWIFT_PATH, "swift"),
         ["--version"]
       );
       break;
     default:
       break;
   }
+
+  SWIFT_VERSION = utils.extractSwiftVersionFromMessage(SWIFT_VERSION);
 
   core.setOutput("swift-version", SWIFT_VERSION);
   core.info(`Successfully set up Swift (${SWIFT_VERSION})`);
