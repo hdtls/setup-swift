@@ -54,3 +54,6 @@ jobs:
 
       - run: echo $TOOLCHAINS
 
+      - uses: mxschmitt/action-tmate@v3
+        with:
+          sudo: false
