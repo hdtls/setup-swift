@@ -33,9 +33,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - run: |
-          yarn install
-          yarn build
+      # - run: |
+      #     yarn install
+      #     yarn build
 
       - run: |
           if which swift >/dev/null; then
@@ -49,6 +49,7 @@ jobs:
         with:
           swift-version: ${{ matrix.swift-version }}
 
+      - run: swift --version
       # - run: swift --version | grep ${{ matrix.swift-version }} || exit 1
 
       - run: echo $TOOLCHAINS

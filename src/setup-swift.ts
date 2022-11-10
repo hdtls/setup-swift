@@ -1,6 +1,5 @@
 import { run } from "./main";
 
 try {
-    run();
-} catch (error) {
-}
+  run();
+} catch (error) {}
