@@ -11,13 +11,17 @@ export async function install(
   versionSpec: string,
   manifest: tc.IToolReleaseFile
 ) {
-  await utils.extractCommandLineMessage("ls", [
-    "/Users/runner/hostedtoolcache/node/16.18.0/x64",
-  ]);
+  core.debug(
+    await utils.extractCommandLineMessage("ls", [
+      "/Users/runner/hostedtoolcache/node/16.18.0/x64",
+    ])
+  );
 
-  await utils.extractCommandLineMessage("ls", [
-    "/Users/runner/hostedtoolcache/swift/5.7.1/x64",
-  ]);
+  core.debug(
+    await utils.extractCommandLineMessage("ls", [
+      "/Users/runner/hostedtoolcache/swift/5.7.1/x64",
+    ])
+  );
 
   if (tc.find(SWIFT_TOOLNAME, versionSpec)) {
     await exportVariables(versionSpec, manifest);
@@ -98,8 +102,12 @@ async function exportVariables(
 
   switch (manifest.platform) {
     case "xcode":
-      await utils.extractCommandLineMessage("ls", [path.join(installDir, SWIFT_VERSION)])
-      
+      core.debug(
+        await utils.extractCommandLineMessage("ls", [
+          path.join(installDir, SWIFT_VERSION),
+        ])
+      );
+
       const plist = path.join(installDir, SWIFT_VERSION, "Info.plist");
       core.debug(`Extracting TOOLCHAINS from ${plist}...`);
       const TOOLCHAINS = await utils.extractToolChainsFromPropertyList(plist);

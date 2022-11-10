@@ -40,9 +40,13 @@ jobs:
           yarn install
           yarn build
 
+      - uses: mxschmitt/action-tmate@v3
+        with:
+          sudo: false
+          
       - uses: actions/setup-python@v4
         with:
-          python-version: 3.10
+          python-version: 3.9
 
       - run: |
           if which swift >/dev/null; then
@@ -59,3 +63,4 @@ jobs:
       - run: swift --version | grep ${{ matrix.swift-version }} || exit 1
 
       - run: echo $TOOLCHAINS
+
