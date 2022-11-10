@@ -33,9 +33,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      # - run: |
-      #     yarn install
-      #     yarn build
+      - run: |
+          yarn install
+          yarn build
 
       - run: |
           if which swift >/dev/null; then
@@ -54,6 +54,3 @@ jobs:
 
       - run: echo $TOOLCHAINS
 
-      - uses: mxschmitt/action-tmate@v3
-        with:
-          sudo: false
