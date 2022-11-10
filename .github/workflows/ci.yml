@@ -49,11 +49,13 @@ jobs:
         with:
           swift-version: ${{ matrix.swift-version }}
 
-      - run: swift --version
-      # - run: swift --version | grep ${{ matrix.swift-version }} || exit 1
-
       - run: echo $TOOLCHAINS
-
+      
+      # - run: swift --version
+      - run: swift --version | grep ${{ matrix.swift-version }} || exit 1
+      
+      - run: xcrun swift --version
+      
       - uses: mxschmitt/action-tmate@v3
         with:
           sudo: false
