@@ -32,6 +32,7 @@ export function getToolchainsDirectory() {
   return path.join(os.homedir(), "/Library/Developer/Toolchains");
 }
 
-export function getLatestSwiftToolchain() {
-  return path.join(getToolchainsDirectory(), "swift-latest.xctoolchain");
-}
+export const SWIFT_LATEST_XCTOOLCHAIN = path.join(
+  getToolchainsDirectory(),
+  "swift-latest.xctoolchain"
+);

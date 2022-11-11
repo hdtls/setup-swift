@@ -6,11 +6,11 @@ import * as os from "os";
 import * as path from "path";
 import * as gpg from "./gpg";
 import {
-  getLatestSwiftToolchain,
   getTempDirectory,
   getToolchainsDirectory,
   parseBundleIDFromPropertyList,
   parseVersionFromLog,
+  SWIFT_LATEST_XCTOOLCHAIN,
 } from "./utils";
 import * as exec from "@actions/exec";
 
@@ -27,7 +27,7 @@ export async function install(
 
   core.info(`Version ${versionSpec} was not found in the local cache`);
 
-  let archivePath = await tc.downloadTool(manifest.download_url);
+  let archivePath = "";
   let extractPath: string = "";
 
   switch (manifest.platform) {
@@ -47,9 +47,8 @@ export async function install(
       core.debug(stdout);
 
       const toolchain = manifest.filename.replace("-osx.pkg", ".xctoolchain");
-      await tc.cacheFile(
+      await tc.cacheDir(
         path.join(getToolchainsDirectory(), toolchain),
-        toolchain,
         SWIFT_TOOL_CACHE_NAME,
         versionSpec
       );
@@ -59,7 +58,6 @@ export async function install(
 
       await gpg.importKeys();
 
-      // core.info(`Downloading signature form ${manifest.download_url}.sig`);
       const signatureUrl = manifest.download_url + ".sig";
       const signature = await tc.downloadTool(signatureUrl);
       await gpg.verify(signature, archivePath);
@@ -113,18 +111,15 @@ async function exportVariables(
         io.rmRF(SWIFT_PATH);
       }
 
-      if (fs.existsSync(getLatestSwiftToolchain())) {
-        io.rmRF(getLatestSwiftToolchain());
+      if (fs.existsSync(SWIFT_LATEST_XCTOOLCHAIN)) {
+        io.rmRF(SWIFT_LATEST_XCTOOLCHAIN);
       }
 
-      fs.symlinkSync(path.join(installDir, toolchain), SWIFT_PATH);
-      fs.symlinkSync(
-        path.join(installDir, toolchain),
-        getLatestSwiftToolchain()
-      );
+      fs.symlinkSync(installDir, SWIFT_PATH);
+      fs.symlinkSync(installDir, SWIFT_LATEST_XCTOOLCHAIN);
 
-      const TOOLCHAINS = await parseBundleIDFromPropertyList(
-        path.join(installDir, "Info.plist")
+      const TOOLCHAINS = parseBundleIDFromPropertyList(
+        path.join(SWIFT_PATH, "Info.plist")
       );
 
       SWIFT_VERSION = (
@@ -143,7 +138,7 @@ async function exportVariables(
       SWIFT_VERSION = (
         await exec.getExecOutput(path.join(SWIFT_PATH, "swift"), ["--version"])
       ).stdout;
-      SWIFT_PATH = path.join(installDir, "/usr/bin");
+      SWIFT_PATH = installDir;
       break;
     default:
       break;
@@ -151,7 +146,7 @@ async function exportVariables(
 
   SWIFT_VERSION = parseVersionFromLog(SWIFT_VERSION);
 
-  core.addPath(SWIFT_PATH);
+  core.addPath(path.join(SWIFT_PATH, "/usr/bin"));
 
   core.setOutput("swift-version", SWIFT_VERSION);
   core.info(`Successfully set up Swift (${SWIFT_VERSION})`);
