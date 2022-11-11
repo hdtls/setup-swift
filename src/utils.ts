@@ -11,9 +11,11 @@ export function parseVersionFromLog(message: string): string {
   return match?.groups?.version || "";
 }
 
-export function parseBundleIDFromPropertyList(plist: string): string {
+export function parseIDFromInfoPListAtDirectory(at: string): string {
   try {
-    const { CFBundleIdentifier } = pl.parse(fs.readFileSync(plist, "utf8")) as {
+    const { CFBundleIdentifier } = pl.parse(
+      fs.readFileSync(path.join(at, "Info.plist"), "utf8")
+    ) as {
       CFBundleIdentifier?: string;
     };
     return CFBundleIdentifier || "";
