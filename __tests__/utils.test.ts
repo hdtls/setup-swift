@@ -1,32 +1,39 @@
-import { parseVersionFromCommandLineMessage } from "../src/utils";
+import { parseVersionFromLog } from "../src/utils";
 
-describe("version lookup", () => {
-  it("identifies version from swift version", async () => {
-    const version = parseVersionFromCommandLineMessage(
-      "Apple Swift version 5.4.2 (swiftlang-1205.0.28.2 clang-1205.0.19.57)"
-    );
-    expect(version).toBe("5.4.2");
-  });
+describe("utils", () => {
+  describe("version parse util", () => {
+    it("parse version from swift version", async () => {
+      const version = parseVersionFromLog(
+        "swift-driver version: 1.62.15 Apple Swift version 5.7.1 (swiftlang-5.7.1.135.3 clang-1400.0.29.51)"
+      );
+      expect(version).toBe("5.7.1");
+    });
 
-  it("identifies version from swift version with target", async () => {
-    const version = parseVersionFromCommandLineMessage(
-      `Apple Swift version 5.5 (swiftlang-1300.0.31.1 clang-1300.0.29.1)
-Target: x86_64-apple-macosx11.0`
-    );
-    expect(version).toBe("5.5");
-  });
+    it("parse version from swift version with target", async () => {
+      const version = parseVersionFromLog(
+        `Apple Swift version 5.7.1 (swift-5.7.1-RELEASE)
+Target: x86_64-apple-macosx12.0`
+      );
+      expect(version).toBe("5.7.1");
+    });
 
-  it("identifies version from swift-driver version", async () => {
-    const version = parseVersionFromCommandLineMessage(
-      "swift-driver version: 1.26.9 Apple Swift version 5.5 (swiftlang-1300.0.31.1 clang-1300.0.29.1)"
-    );
-    expect(version).toBe("5.5");
-  });
+    it("parse version from swift-driver version", async () => {
+      const version = parseVersionFromLog(
+        "swift-driver version: 1.26.9 Apple Swift version 5.5 (swiftlang-1300.0.31.1 clang-1300.0.29.1)"
+      );
+      expect(version).toBe("5.5");
+    });
 
-  it("identifies version from swift version on linux", async () => {
-    const version = parseVersionFromCommandLineMessage(
-      "Swift version 5.5.1 (swift-5.5.1-RELEASE)"
-    );
-    expect(version).toBe("5.5.1");
+    it("parse version from empty string", async () => {
+      const version = parseVersionFromLog("");
+      expect(version).toBe("");
+    });
+
+    it("parse version from string that doesn't contains valid version string", async () => {
+      const version = parseVersionFromLog(
+        "swift-driver version: 1.62.15 Apple Swift version"
+      );
+      expect(version).toBe("");
+    });
   });
 });
