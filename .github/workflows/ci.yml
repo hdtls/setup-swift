@@ -57,6 +57,11 @@ jobs:
         with:
           swift-version: ${{ matrix.swift-version }}
 
+      - name: Run swift-setup...
+        uses: ./
+        with:
+          swift-version: 5.7.1
+          
       - run: swift --version | grep ${{ matrix.swift-version }} || exit 1
 
       - name: Run xcrun swift --version

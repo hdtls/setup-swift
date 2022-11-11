@@ -123,9 +123,9 @@ async function exportVariables(
         await io.rmRF(SWIFT_LATEST_XCTOOLCHAIN);
       }
 
-      fs.symlinkSync(installDir, SWIFT_LATEST_XCTOOLCHAIN);
+      TOOLCHAINS = parseIDFromInfoPListAtDirectory(installDir);
 
-      TOOLCHAINS = parseIDFromInfoPListAtDirectory(SWIFT_LATEST_XCTOOLCHAIN);
+      core.debug(`export TOOLCHAINS environment variable: ${TOOLCHAINS}`)
 
       SWIFT_VERSION = (
         await exec.getExecOutput("xcrun", [
