@@ -5,79 +5,88 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import * as gpg from "./gpg";
-import * as utils from "./utils";
+import {
+  getLatestSwiftToolchain,
+  getTempDirectory,
+  getToolchainsDirectory,
+  parseBundleIDFromPropertyList,
+  parseVersionFromLog,
+} from "./utils";
+import * as exec from "@actions/exec";
 
-const SWIFT_TOOLNAME = "swift";
+const SWIFT_TOOL_CACHE_NAME = "swift";
 
 export async function install(
   versionSpec: string,
   manifest: tc.IToolReleaseFile
 ) {
-  if (tc.find(SWIFT_TOOLNAME, versionSpec)) {
+  if (tc.find(SWIFT_TOOL_CACHE_NAME, versionSpec)) {
     await exportVariables(versionSpec, manifest);
     return;
   }
 
   core.info(`Version ${versionSpec} was not found in the local cache`);
 
-  try {
-    let archivePath = await tc.downloadTool(manifest.download_url);
-    let extractPath: string = "";
+  let archivePath = await tc.downloadTool(manifest.download_url);
+  let extractPath: string = "";
 
-    switch (manifest.platform) {
-      case "xcode":
-        extractPath = await tc.extractXar(archivePath);
+  switch (manifest.platform) {
+    case "xcode":
+      archivePath = await tc.downloadTool(
+        manifest.download_url,
+        path.join(getTempDirectory(), manifest.filename)
+      );
 
-        archivePath = path.join(
-          extractPath,
-          manifest.filename.replace(".pkg", "-package.pkg"),
-          "Payload"
-        );
-
-        extractPath = await tc.extractTar(archivePath);
-        break;
-      case "ubuntu":
-        archivePath = await tc.downloadTool(manifest.download_url);
-
-        await gpg.importKeys();
-
-        // core.info(`Downloading signature form ${manifest.download_url}.sig`);
-        const signatureUrl = manifest.download_url + ".sig";
-        const signature = await tc.downloadTool(signatureUrl);
-        await gpg.verify(signature, archivePath);
-
-        extractPath = await tc.extractTar(archivePath);
-        extractPath = path.join(
-          extractPath,
-          `swift-${versionSpec}-RELEASE-${manifest.platform}${
-            manifest.platform_version || ""
-          }`
-        );
-        break;
-      case "windows":
-        break;
-      default:
-        break;
-    }
-
-    await tc.cacheDir(extractPath, SWIFT_TOOLNAME, versionSpec);
-    await exportVariables(versionSpec, manifest);
-  } catch (err) {
-    if (err instanceof tc.HTTPError) {
-      core.info(err.message);
-      if (err.stack) {
-        core.debug(err.stack);
+      const { exitCode, stdout, stderr } = await exec.getExecOutput(
+        "installer",
+        ["-pkg", archivePath, "-target", "CurrentUserHomeDirectory"]
+      );
+      if (exitCode !== 0) {
+        core.setFailed(stderr);
       }
-    }
-    throw err;
+      core.debug(stdout);
+
+      const toolchain = manifest.filename.replace("-osx.pkg", ".xctoolchain");
+      await tc.cacheFile(
+        path.join(getToolchainsDirectory(), toolchain),
+        toolchain,
+        SWIFT_TOOL_CACHE_NAME,
+        versionSpec
+      );
+      break;
+    case "ubuntu":
+      archivePath = await tc.downloadTool(manifest.download_url);
+
+      await gpg.importKeys();
+
+      // core.info(`Downloading signature form ${manifest.download_url}.sig`);
+      const signatureUrl = manifest.download_url + ".sig";
+      const signature = await tc.downloadTool(signatureUrl);
+      await gpg.verify(signature, archivePath);
+
+      extractPath = await tc.extractTar(archivePath);
+      extractPath = path.join(
+        extractPath,
+        `swift-${versionSpec}-RELEASE-${manifest.platform}${
+          manifest.platform_version || ""
+        }`
+      );
+      await tc.cacheDir(extractPath, SWIFT_TOOL_CACHE_NAME, versionSpec);
+      break;
+    case "windows":
+      break;
+    default:
+      break;
   }
+
+  await exportVariables(versionSpec, manifest);
 }
 
 async function exportVariables(
   versionSpec: string,
   manifest: tc.IToolReleaseFile
 ) {
-  const installDir = tc.find(SWIFT_TOOLNAME, versionSpec);
+  const installDir = tc.find(SWIFT_TOOL_CACHE_NAME, versionSpec);
 
   if (!installDir) {
     throw new Error(
@@ -91,52 +100,58 @@ async function exportVariables(
   }
 
   let SWIFT_VERSION = "";
-  let SWIFT_PATH = path.join(installDir, "/usr/bin");
-
-  core.addPath(SWIFT_PATH);
+  let SWIFT_PATH = "";
 
   switch (manifest.platform) {
     case "xcode":
-      const tcDir = `${os.homedir()}/Library/Developer/Toolchains`;
+      await io.mkdirP(getToolchainsDirectory());
 
-      await io.mkdirP(tcDir);
+      const toolchain = manifest.filename.replace("-osx.pkg", ".xctoolchain");
+      SWIFT_PATH = path.join(getToolchainsDirectory(), toolchain);
 
-      let toolchain = path.join(
-        tcDir,
-        `${manifest.filename.replace("-osx.pkg", "")}.xctoolchain`
-      );
-
-      if (fs.existsSync(toolchain)) {
-        io.rmRF(toolchain);
+      if (fs.existsSync(SWIFT_PATH)) {
+        io.rmRF(SWIFT_PATH);
       }
 
-      fs.symlinkSync(installDir, toolchain);
+      if (fs.existsSync(getLatestSwiftToolchain())) {
+        io.rmRF(getLatestSwiftToolchain());
+      }
 
-      const TOOLCHAINS = await utils.parseBundleIDFromPropertyList(
+      fs.symlinkSync(path.join(installDir, toolchain), SWIFT_PATH);
+      fs.symlinkSync(
+        path.join(installDir, toolchain),
+        getLatestSwiftToolchain()
+      );
+
+      const TOOLCHAINS = await parseBundleIDFromPropertyList(
         path.join(installDir, "Info.plist")
       );
 
-      core.exportVariable("TOOLCHAINS", TOOLCHAINS);
+      SWIFT_VERSION = (
+        await exec.getExecOutput("xcrun", [
+          "--toolchain",
+          `${TOOLCHAINS}`,
+          "--run",
+          "swift",
+          "--version",
+        ])
+      ).stdout;
 
-      SWIFT_VERSION = await utils.commandLineMessage("xcrun", [
-        "--toolchain",
-        `"${TOOLCHAINS}"`,
-        "--run",
-        "swift",
-        "--version",
-      ]);
+      core.exportVariable("TOOLCHAINS", TOOLCHAINS);
       break;
     case "ubuntu":
-      SWIFT_VERSION = await utils.commandLineMessage(
-        path.join(SWIFT_PATH, "swift"),
-        ["--version"]
-      );
+      SWIFT_VERSION = (
+        await exec.getExecOutput(path.join(SWIFT_PATH, "swift"), ["--version"])
+      ).stdout;
+      SWIFT_PATH = path.join(installDir, "/usr/bin");
       break;
     default:
       break;
   }
 
-  SWIFT_VERSION = utils.parseVersionFromCommandLineMessage(SWIFT_VERSION);
+  SWIFT_VERSION = parseVersionFromLog(SWIFT_VERSION);
+
+  core.addPath(SWIFT_PATH);
 
   core.setOutput("swift-version", SWIFT_VERSION);
   core.info(`Successfully set up Swift (${SWIFT_VERSION})`);
