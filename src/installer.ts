@@ -8,7 +8,7 @@ import * as gpg from "./gpg";
 import {
   getTempDirectory,
   getToolchainsDirectory,
-  parseBundleIDFromPropertyList,
+  parseIDFromInfoPListAtDirectory,
   parseVersionFromLog,
   SWIFT_LATEST_XCTOOLCHAIN,
 } from "./utils";
@@ -107,20 +107,25 @@ async function exportVariables(
       const toolchain = manifest.filename.replace("-osx.pkg", ".xctoolchain");
       SWIFT_PATH = path.join(getToolchainsDirectory(), toolchain);
 
+      let TOOLCHAINS = "";
+
       if (fs.existsSync(SWIFT_PATH)) {
-        io.rmRF(SWIFT_PATH);
+        TOOLCHAINS = parseIDFromInfoPListAtDirectory(SWIFT_PATH);
+
+        const expect = parseIDFromInfoPListAtDirectory(installDir);
+        if (TOOLCHAINS != expect) {
+          await io.rmRF(SWIFT_PATH);
+          fs.symlinkSync(installDir, SWIFT_PATH);
+        }
       }
 
       if (fs.existsSync(SWIFT_LATEST_XCTOOLCHAIN)) {
-        io.rmRF(SWIFT_LATEST_XCTOOLCHAIN);
+        await io.rmRF(SWIFT_LATEST_XCTOOLCHAIN);
       }
 
-      fs.symlinkSync(installDir, SWIFT_PATH);
       fs.symlinkSync(installDir, SWIFT_LATEST_XCTOOLCHAIN);
 
-      const TOOLCHAINS = parseBundleIDFromPropertyList(
-        path.join(SWIFT_PATH, "Info.plist")
-      );
+      TOOLCHAINS = parseIDFromInfoPListAtDirectory(SWIFT_LATEST_XCTOOLCHAIN);
 
       SWIFT_VERSION = (
         await exec.getExecOutput("xcrun", [
