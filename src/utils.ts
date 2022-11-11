@@ -1,59 +1,37 @@
-import * as core from "@actions/core";
-import * as exec from "@actions/exec";
 import * as assert from "assert";
 import * as pl from "plist";
 import * as fs from "fs";
+import path from "path";
+import * as os from "os";
 
-export function parseVersionFromCommandLineMessage(message: string): string {
+export function parseVersionFromLog(message: string): string {
   const match = message.match(
     /Swift\ version (?<version>[0-9]+\.[0-9+]+(\.[0-9]+)?)/
-  ) || {
-    groups: { version: null },
-  };
-
-  if (!match.groups || !match.groups.version) {
-    return "";
-  }
-
-  return match.groups.version || "";
+  );
+  return match?.groups?.version || "";
 }
 
-export async function parseBundleIDFromPropertyList(
-  plist: string
-): Promise<string> {
+export function parseBundleIDFromPropertyList(plist: string): string {
   try {
-    let message = pl.parse(fs.readFileSync(plist, "utf8")) as {
-      CFBundleIdentifier: string;
+    const { CFBundleIdentifier } = pl.parse(fs.readFileSync(plist, "utf8")) as {
+      CFBundleIdentifier?: string;
     };
-    return message.CFBundleIdentifier;
+    return CFBundleIdentifier || "";
   } catch (error) {
     return "";
   }
 }
 
-export async function commandLineMessage(
-  commandLine: string,
-  args?: string[]
-): Promise<string> {
-  let message = "";
-  const options = {
-    listeners: {
-      stdout: (data: Buffer) => {
-        message += data.toString().trim();
-      },
-      stderr: (data: Buffer) => {
-        core.error(data.toString().trim());
-      },
-    },
-  };
-
-  await exec.exec(commandLine, args, options);
-
-  return message;
-}
-
-function _getTempDirectory() {
+export function getTempDirectory() {
   const tempDirectory = process.env["RUNNER_TEMP"] || "";
   assert.ok(tempDirectory, "Expected RUNNER_TEMP to be defined");
   return tempDirectory;
+}
+
+export function getToolchainsDirectory() {
+  return path.join(os.homedir(), "/Library/Developer/Toolchains");
+}
+
+export function getLatestSwiftToolchain() {
+  return path.join(getToolchainsDirectory(), "swift-latest.xctoolchain");
 }
