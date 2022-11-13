@@ -1,18 +1,4 @@
-import * as core from "@actions/core";
-import * as tc from "@actions/tool-cache";
-import * as io from "@actions/io";
-import * as fs from "fs";
-import * as os from "os";
-import * as path from "path";
-import * as gpg from "./gpg";
-import {
-  getTempDirectory,
-  getToolchainsDirectory,
-  parseIDFromInfoPListAtDirectory,
-  parseVersionFromLog,
-  SWIFT_LATEST_XCTOOLCHAIN,
-} from "./utils";
-import * as exec from "@actions/exec";
+import * as tc from './tool-cache';
 
 const SWIFT_TOOL_CACHE_NAME = "swift";
 
