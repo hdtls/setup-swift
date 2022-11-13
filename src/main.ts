@@ -5,7 +5,7 @@ import * as finder from './finder';
 import * as installer from './installer';
 import * as utils from './utils';
 
-export async function main() {
+export async function run() {
   try {
     const inputVersion = core.getInput('swift-version', { required: true });
     const arch = core.getInput('architecture') || os.arch();

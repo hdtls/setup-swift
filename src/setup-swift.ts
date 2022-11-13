@@ -1,3 +1,3 @@
-import { main } from "./main";
+import * as main from './main';
 
-main();
+main.run();
