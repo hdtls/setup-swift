@@ -3,7 +3,6 @@ import * as io from '@actions/io';
 import * as exec from '@actions/exec';
 import assert from 'assert';
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import * as gpg from './gpg';
 import * as tc from './tool-cache';
@@ -26,7 +25,9 @@ export async function install(manifest: tc.IToolRelease) {
         path.join(archivePath, `${manifest.version}-osx-package.pkg`, 'Payload')
       );
       break;
-    case 'linux':
+    case 'ubuntu':
+    case 'centos':
+    case 'amazonlinux':
       const signatureUrl = release.download_url + '.sig';
       const [targz, signature] = await Promise.all([
         tc.downloadTool(release.download_url),
@@ -45,7 +46,9 @@ export async function install(manifest: tc.IToolRelease) {
       );
       break;
     default:
-      throw new Error('Unsupported');
+      throw new Error(
+        `Installing Swift on ${release.platform} is not supported yet`
+      );
   }
 
   await tc.cacheDir(extractPath, 'swift', manifest.version);
@@ -57,9 +60,9 @@ export async function exportVariables(
 ) {
   assert.ok(/^swift-/.test(manifest.version));
 
-  let SWIFT_VERSION = '';
+  let message = '';
 
-  switch (os.platform()) {
+  switch (manifest.files[0].platform) {
     case 'darwin':
       const TOOLCHAINS = toolchains.parseBundleIDFromDirectory(toolPath);
 
@@ -77,7 +80,7 @@ export async function exportVariables(
 
       core.debug(`export TOOLCHAINS environment variable: ${TOOLCHAINS}`);
 
-      SWIFT_VERSION = (
+      message = (
         await exec.getExecOutput('xcrun', [
           '--toolchain',
           `${TOOLCHAINS}`,
@@ -90,22 +93,25 @@ export async function exportVariables(
       core.exportVariable('TOOLCHAINS', TOOLCHAINS);
       core.setOutput('TOOLCHAINS', TOOLCHAINS);
       break;
-    case 'linux':
-      SWIFT_VERSION = (
+    case 'ubuntu':
+    case 'centos':
+    case 'amazonlinux':
+      message = (
         await exec.getExecOutput(path.join(toolPath, '/usr/bin/swift'), [
           '--version'
         ])
       ).stdout;
       break;
     default:
-      throw new Error('Unsupported');
+      throw new Error(
+        `Installing Swift on ${manifest.files[0].platform} is not supported yet`
+      );
   }
 
-  SWIFT_VERSION = utils.getVersion(SWIFT_VERSION);
+  const swiftVersion = utils.getVersion(message);
 
   core.addPath(path.join(toolPath, '/usr/bin'));
   core.setOutput('swift-path', path.join(toolPath, '/usr/bin/swift'));
-  core.setOutput('swift-version', SWIFT_VERSION);
-  core.info('');
-  core.info(`Successfully set up Swift (${SWIFT_VERSION})`);
+  core.setOutput('swift-version', swiftVersion);
+  core.info(`Successfully set up Swift ${swiftVersion} (${manifest.version})`);
 }
