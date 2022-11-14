@@ -1,14 +1,17 @@
 name: Setup Swift
-description: Setup a Swift environment on Ubuntu or macOS 
+description: "Set up a specific version of Swift and add the command-line tools to the PATH."
 author: Junfeng Zhang
 inputs:
   swift-version: 
-    description: Swift version to configure
+    description: "Exact version of Swift to use."
     required: true
-    default: '5.7'
+  architecture:
+    description: "The target architecture of the Swift interpreter."
 outputs:
-  version:
-    description: The full Swift version that was configured
+  swift-version:
+    description: "The installed Swift version."
+  swift-path:
+    description: "The absolute path to the Swift executable."
 runs:
-  using: node16
-  main: dist/setup/index.js
+  using: 'node16'
+  main: 'dist/setup/index.js'
