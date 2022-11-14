@@ -1,10 +1,8 @@
 import fs from 'fs';
 
 export function getVersion(message: string) {
-  const match = message.match(
-    /Swift\ version (?<version>[0-9]\.[0-9+](\.[0-9])?(-dev)?)/
-  );
-  return match?.groups?.version || '';
+  const re = /.*Swift version (\d+\.\d+(\.\d+)?(-dev)?).*/is;
+  return re.test(message) ? message.replace(re, '$1') : '';
 }
 
 export var __DISTRIB__: string | undefined;

@@ -5,54 +5,42 @@ jest.mock('fs');
 
 describe('utils', () => {
   describe('version parse util', () => {
-    it('parse version from swift version', async () => {
-      const version = utils.getVersion(
-        'swift-driver version: 1.62.15 Apple Swift version 5.7.1 (swiftlang-5.7.1.135.3 clang-1400.0.29.51)'
-      );
-      expect(version).toBe('5.7.1');
-    });
-
-    it('parse version from swift version with target', async () => {
-      const version = utils.getVersion(
+    it.each([
+      [
+        'from semantic version message',
+        'swift-driver version: 1.62.15 Apple Swift version 5.7.1 (swiftlang-5.7.1.135.3 clang-1400.0.29.51)',
+        '5.7.1'
+      ],
+      [
+        'message that only contains major and minor version',
+        'Apple Swift version 5.7 (swiftlang-5.7.1.135.3 clang-1400.0.29.51)',
+        '5.7'
+      ],
+      [
+        'from development toolchain message',
+        'Apple Swift version 5.7.1-dev (swiftlang-5.7.1.135.3 clang-1400.0.29.51)',
+        '5.7.1-dev'
+      ],
+      [
+        'from development toolchain message that only contains major and minor version',
+        'Apple Swift version 5.8-dev (swiftlang-5.7.1.135.3 clang-1400.0.29.51)',
+        '5.8-dev'
+      ],
+      ['from empty message', '', ''],
+      [
+        'from version message that contains line-break',
         `Apple Swift version 5.7.1 (swift-5.7.1-RELEASE)
-Target: x86_64-apple-macosx12.0`
-      );
-      expect(version).toBe('5.7.1');
-    });
-
-    it('parse version from swift-driver version', async () => {
-      const version = utils.getVersion(
-        'swift-driver version: 1.26.9 Apple Swift version 5.5 (swiftlang-1300.0.31.1 clang-1300.0.29.1)'
-      );
-      expect(version).toBe('5.5');
-    });
-
-    it('parse version from empty string', async () => {
-      const version = utils.getVersion('');
-      expect(version).toBe('');
-    });
-
-    it("parse version from string that doesn't contains valid version string", async () => {
-      const version = utils.getVersion(
-        'swift-driver version: 1.62.15 Apple Swift version'
-      );
-      expect(version).toBe('');
-    });
-
-    it('parse version from trunk development snapshot swift version', async () => {
-      const version = utils.getVersion(
-        `Apple Swift version 5.8-dev (LLVM fc8da753996192c, Swift 9ad73a69a5a99ba)
-Target: x86_64-apple-macosx12.0`
-      );
-      expect(version).toBe('5.8-dev');
-    });
-
-    it('parse version from development snapshot swift version', async () => {
-      const version = utils.getVersion(
-        `Apple Swift version 5.7.1-dev (LLVM 597c04db307f4ed, Swift 2e814ca5d704c9f)
-Target: x86_64-apple-macosx12.0`
-      );
-      expect(version).toBe('5.7.1-dev');
+Target: x86_64-apple-macosx12.0`,
+        '5.7.1'
+      ],
+      [
+        'from version message that contains line-break',
+        `swift version 5.7.1 (swift-5.7.1-RELEASE)
+Target: x86_64-apple-macosx12.0`,
+        '5.7.1'
+      ]
+    ])('parse version %s', (_, message, expected) => {
+      expect(utils.getVersion(message)).toBe(expected);
     });
   });
 
