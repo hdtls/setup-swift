@@ -15427,7 +15427,7 @@ function getLinuxDistribID() {
         .split('\n')
         .map(line => { var _a, _b; return ((_b = (_a = line.trim().match(RegExp_ID)) === null || _a === void 0 ? void 0 : _a.groups) === null || _b === void 0 ? void 0 : _b.distrib_id) || ''; })
         .filter(line => line.length > 0)
-        .map(line => line.replace('"', ''))
+        .map(line => line.replace(/['"]+/g, ''))
         .reverse()
         .pop();
     return distrib_id == 'amzn' ? 'amazonlinux' : distrib_id || '';
