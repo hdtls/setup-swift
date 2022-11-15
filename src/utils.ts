@@ -73,7 +73,7 @@ export function getLinuxDistribID() {
     .split('\n')
     .map(line => line.trim().match(RegExp_ID)?.groups?.distrib_id || '')
     .filter(line => line.length > 0)
-    .map(line => line.replace('"', ''))
+    .map(line => line.replace(/['"]+/g, ''))
     .reverse()
     .pop();
 
