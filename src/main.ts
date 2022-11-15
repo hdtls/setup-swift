@@ -8,39 +8,40 @@ import * as utils from './utils';
 export async function run() {
   try {
     const versipnSpec = core.getInput('swift-version', { required: true });
-    const arch = core.getInput('architecture') || os.arch();
+    const arch = core.getInput('architecture') || process.arch;
 
     if (versipnSpec.length === 0) {
       core.setFailed('Missing `swift-version`.');
     }
 
-    const platform = os.platform();
-
     // TODO: resolve win32 version id
     const manifest = mm.resolve(
       versipnSpec,
-      platform == 'linux' ? utils.getLinuxDistribID() : platform,
+      process.platform == 'linux'
+        ? utils.getLinuxDistribID()
+        : process.platform,
       arch,
-      platform == 'linux'
+      process.platform == 'linux'
         ? utils.getLinuxDistribRelease()
-        : platform == 'darwin'
+        : process.platform == 'darwin'
         ? ''
         : '10'
     );
 
-    let toolPath = finder.findSwift(manifest);
+    let toolPath = await finder.find(manifest);
 
     if (!toolPath) {
       await installer.install(manifest);
+      toolPath = await finder.find(manifest);
     }
-
-    toolPath = finder.findSwift(manifest);
 
     if (!toolPath) {
       throw new Error(
         [
           `Version ${versipnSpec} with platform ${
-            platform == 'linux' ? utils.getLinuxDistribID() : platform
+            process.platform == 'linux'
+              ? utils.getLinuxDistribID()
+              : process.platform
           } not found`,
           `The list of all available versions can be found here: https://www.swift.org/download`
         ].join(os.EOL)

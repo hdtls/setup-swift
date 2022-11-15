@@ -14766,28 +14766,51 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.findSwift = void 0;
+exports.find = void 0;
 const core = __importStar(__nccwpck_require__(2186));
+const exec = __importStar(__nccwpck_require__(1514));
+const path_1 = __importDefault(__nccwpck_require__(1017));
+const fs = __importStar(__nccwpck_require__(7147));
 const tc = __importStar(__nccwpck_require__(9456));
-function findSwift(manifest) {
-    let RE = /^swift-(?<version>[\d]\.[\d](\.[\d])?)-RELEASE$/;
-    let toolPath = '';
-    if (RE.test(manifest.version)) {
-        toolPath = tc.find('swift', manifest.version.match(RE)[0], manifest.files[0].arch);
+const toolchains = __importStar(__nccwpck_require__(9322));
+const utils = __importStar(__nccwpck_require__(1314));
+function find(manifest) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let re = /^swift-(\d+\.\d+(\.\d+)?)-RELEASE$/;
+        let toolPath = '';
+        // Find Default Xocde toolchain if swift version equals to requested
+        // we should avoid install action just return Xcode default toolchain as toolPath.
+        if ((process.platform == 'darwin', re.test(manifest.version))) {
+            const commandLine = path_1.default.join(toolchains.getXcodeDefaultToolchain(), '/usr/bin/swift');
+            if (fs.existsSync(commandLine)) {
+                const { stdout } = yield exec.getExecOutput(commandLine, ['--version']);
+                if (utils.getVersion(stdout) == manifest.version.replace(re, '$1')) {
+                    return toolchains.getXcodeDefaultToolchain();
+                }
+            }
+        }
+        toolPath = tc.find('swift', manifest.version, manifest.files[0].arch);
         if (toolPath) {
             return toolPath;
         }
-    }
-    toolPath = tc.find('swift', manifest.version, manifest.files[0].arch);
-    // If not found in cache, download
-    if (toolPath) {
-        return toolPath;
-    }
-    core.info(`Version ${manifest.version} was not found in the local cache`);
-    return '';
+        core.info(`Version ${manifest.version} was not found in the local cache`);
+        return '';
+    });
 }
-exports.findSwift = findSwift;
+exports.find = find;
 
 
 /***/ }),
@@ -14918,7 +14941,7 @@ function install(manifest) {
             case 'darwin':
                 archivePath = yield tc.downloadTool(release.download_url);
                 archivePath = yield tc.extractXar(archivePath);
-                extractPath = yield tc.extractTar(archivePath, 'Payload');
+                extractPath = yield tc.extractTar(path_1.default.join(archivePath, `${manifest.version}-osx-package.pkg`, 'Payload'));
                 break;
             case 'ubuntu':
             case 'centos':
@@ -15042,25 +15065,28 @@ function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const versipnSpec = core.getInput('swift-version', { required: true });
-            const arch = core.getInput('architecture') || os_1.default.arch();
+            const arch = core.getInput('architecture') || process.arch;
             if (versipnSpec.length === 0) {
                 core.setFailed('Missing `swift-version`.');
             }
-            const platform = os_1.default.platform();
             // TODO: resolve win32 version id
-            const manifest = mm.resolve(versipnSpec, platform == 'linux' ? utils.getLinuxDistribID() : platform, arch, platform == 'linux'
+            const manifest = mm.resolve(versipnSpec, process.platform == 'linux'
+                ? utils.getLinuxDistribID()
+                : process.platform, arch, process.platform == 'linux'
                 ? utils.getLinuxDistribRelease()
-                : platform == 'darwin'
+                : process.platform == 'darwin'
                     ? ''
                     : '10');
-            let toolPath = finder.findSwift(manifest);
+            let toolPath = yield finder.find(manifest);
             if (!toolPath) {
                 yield installer.install(manifest);
+                toolPath = yield finder.find(manifest);
             }
-            toolPath = finder.findSwift(manifest);
             if (!toolPath) {
                 throw new Error([
-                    `Version ${versipnSpec} with platform ${platform == 'linux' ? utils.getLinuxDistribID() : platform} not found`,
+                    `Version ${versipnSpec} with platform ${process.platform == 'linux'
+                        ? utils.getLinuxDistribID()
+                        : process.platform} not found`,
                     `The list of all available versions can be found here: https://www.swift.org/download`
                 ].join(os_1.default.EOL));
             }
@@ -15212,32 +15238,49 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.find = exports.cacheDir = exports.extractXar = exports.extractTar = exports.downloadTool = void 0;
-const tc = __importStar(__nccwpck_require__(7784));
+exports.find = exports.extractXar = exports.extractTar = exports.downloadTool = exports.cacheDir = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const fs = __importStar(__nccwpck_require__(7147));
+const assert_1 = __importDefault(__nccwpck_require__(9491));
+const path_1 = __importDefault(__nccwpck_require__(1017));
 var tool_cache_1 = __nccwpck_require__(7784);
+Object.defineProperty(exports, "cacheDir", ({ enumerable: true, get: function () { return tool_cache_1.cacheDir; } }));
 Object.defineProperty(exports, "downloadTool", ({ enumerable: true, get: function () { return tool_cache_1.downloadTool; } }));
 Object.defineProperty(exports, "extractTar", ({ enumerable: true, get: function () { return tool_cache_1.extractTar; } }));
 Object.defineProperty(exports, "extractXar", ({ enumerable: true, get: function () { return tool_cache_1.extractXar; } }));
-function cacheDir(sourceDir, toolName, versionSpec, arch) {
-    return __awaiter(this, void 0, void 0, function* () {
-        return yield tc.cacheDir(sourceDir, toolName, versionSpec, arch);
-    });
-}
-exports.cacheDir = cacheDir;
 function find(toolName, versionSpec, arch) {
-    return tc.find(toolName, versionSpec, arch);
+    if (!toolName) {
+        throw new Error('toolName parameter is required');
+    }
+    if (!versionSpec) {
+        throw new Error('versionSpec parameter is required');
+    }
+    arch = arch || process.arch;
+    let toolPath = '';
+    const cachePath = path_1.default.join(_getCacheDirectory(), toolName, versionSpec, arch);
+    core.debug(`checking cache: ${cachePath}`);
+    if (fs.existsSync(cachePath) && fs.existsSync(`${cachePath}.complete`)) {
+        core.debug(`Found tool in cache ${toolName} ${versionSpec} ${arch}`);
+        toolPath = cachePath;
+    }
+    else {
+        core.debug('not found');
+    }
+    return toolPath;
 }
 exports.find = find;
+/**
+ * Gets RUNNER_TOOL_CACHE
+ */
+function _getCacheDirectory() {
+    const cacheDirectory = process.env['RUNNER_TOOL_CACHE'] || '';
+    assert_1.default.ok(cacheDirectory, 'Expected RUNNER_TOOL_CACHE to be defined');
+    return cacheDirectory;
+}
 
 
 /***/ }),
@@ -15313,7 +15356,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getLinuxDistribID = exports.getLinuxDistribRelease = exports.__DISTRIB__ = exports.getVersion = void 0;
 const fs_1 = __importDefault(__nccwpck_require__(7147));
 function getVersion(message) {
-    const re = /.*Apple Swift version (\d+\.\d+(\.\d+)?(-dev)?).*/s;
+    const re = /.*Swift version (\d+\.\d+(\.\d+)?(-dev)?).*/is;
     return re.test(message) ? message.replace(re, '$1') : '';
 }
 exports.getVersion = getVersion;
