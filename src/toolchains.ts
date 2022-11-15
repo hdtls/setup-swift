@@ -18,12 +18,12 @@ export function parseBundleIDFromDirectory(at: string): string {
   }
 }
 
+export function getToolchainsDirectory(): string {
+  return path.join(os.homedir(), '/Library/Developer/Toolchains');
+}
+
 export function getToolchain(named: string): string {
-  return path.join(
-    os.homedir(),
-    '/Library/Developer/Toolchains',
-    `${named}.xctoolchain`
-  );
+  return path.join(getToolchainsDirectory(), `${named}.xctoolchain`);
 }
 
 export function getXcodeDefaultToolchain(): string {
