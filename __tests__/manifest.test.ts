@@ -2,13 +2,13 @@ import { resolve } from '../src/manifest';
 
 describe('manifest', () => {
   describe('resolve', () => {
-    describe('with semantic version convitable', () => {
+    describe('with semantic version convertible', () => {
       it.each([
         {
           input: {
             versionSpec: '5.7.1',
             platform: 'darwin',
-            architechure: 'x64'
+            architecture: 'x64'
           },
           expected: {
             version: 'swift-5.7.1-RELEASE',
@@ -30,7 +30,7 @@ describe('manifest', () => {
             versionSpec: '5.7.1',
             platform: 'ubuntu',
             platformVersion: '22.04',
-            architechure: 'x64'
+            architecture: 'x64'
           },
           expected: {
             version: 'swift-5.7.1-RELEASE',
@@ -53,7 +53,7 @@ describe('manifest', () => {
             versionSpec: '5.7.1',
             platform: 'ubuntu',
             platformVersion: '22.04',
-            architechure: 'arm64'
+            architecture: 'arm64'
           },
           expected: {
             version: 'swift-5.7.1-RELEASE',
@@ -76,7 +76,7 @@ describe('manifest', () => {
             versionSpec: '5.7.1',
             platform: 'win32',
             platformVersion: '10',
-            architechure: 'x64'
+            architecture: 'x64'
           },
           expected: {
             version: 'swift-5.7.1-RELEASE',
@@ -94,12 +94,12 @@ describe('manifest', () => {
             ]
           }
         }
-      ])('on $input.platform $input.architechure', ({ input, expected }) => {
+      ])('on $input.platform $input.architecture', ({ input, expected }) => {
         expect(
           resolve(
             input.versionSpec,
             input.platform as NodeJS.Platform,
-            input.architechure,
+            input.architecture,
             input.platformVersion
           )
         ).toEqual(expected);
@@ -112,7 +112,7 @@ describe('manifest', () => {
           input: {
             versionSpec: 'swift-5.7.1-RELEASE',
             platform: 'darwin',
-            architechure: 'x64'
+            architecture: 'x64'
           },
           expected: {
             version: 'swift-5.7.1-RELEASE',
@@ -134,7 +134,7 @@ describe('manifest', () => {
             versionSpec: 'swift-5.7.1-RELEASE',
             platform: 'ubuntu',
             platformVersion: '22.04',
-            architechure: 'x64'
+            architecture: 'x64'
           },
           expected: {
             version: 'swift-5.7.1-RELEASE',
@@ -157,7 +157,7 @@ describe('manifest', () => {
             versionSpec: 'swift-5.7.1-RELEASE',
             platform: 'ubuntu',
             platformVersion: '22.04',
-            architechure: 'arm64'
+            architecture: 'arm64'
           },
           expected: {
             version: 'swift-5.7.1-RELEASE',
@@ -180,7 +180,7 @@ describe('manifest', () => {
             versionSpec: 'swift-5.7.1-RELEASE',
             platform: 'win32',
             platformVersion: '10',
-            architechure: 'x64'
+            architecture: 'x64'
           },
           expected: {
             version: 'swift-5.7.1-RELEASE',
@@ -198,12 +198,12 @@ describe('manifest', () => {
             ]
           }
         }
-      ])('on $input.platform $input.architechure', ({ input, expected }) => {
+      ])('on $input.platform $input.architecture', ({ input, expected }) => {
         expect(
           resolve(
             input.versionSpec,
             input.platform as NodeJS.Platform,
-            input.architechure,
+            input.architecture,
             input.platformVersion
           )
         ).toEqual(expected);
@@ -216,7 +216,7 @@ describe('manifest', () => {
           input: {
             versionSpec: 'swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a',
             platform: 'darwin',
-            architechure: 'x64'
+            architecture: 'x64'
           },
           expected: {
             version: 'swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a',
@@ -238,7 +238,7 @@ describe('manifest', () => {
             versionSpec: 'swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a',
             platform: 'ubuntu',
             platformVersion: '22.04',
-            architechure: 'x64'
+            architecture: 'x64'
           },
           expected: {
             version: 'swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a',
@@ -262,7 +262,7 @@ describe('manifest', () => {
             versionSpec: 'swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a',
             platform: 'ubuntu',
             platformVersion: '22.04',
-            architechure: 'arm64'
+            architecture: 'arm64'
           },
           expected: {
             version: 'swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a',
@@ -286,7 +286,7 @@ describe('manifest', () => {
             versionSpec: 'swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a',
             platform: 'win32',
             platformVersion: '10',
-            architechure: 'x64'
+            architecture: 'x64'
           },
           expected: {
             version: 'swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a',
@@ -305,12 +305,12 @@ describe('manifest', () => {
             ]
           }
         }
-      ])('on $input.platform $input.architechure', ({ input, expected }) => {
+      ])('on $input.platform $input.architecture', ({ input, expected }) => {
         expect(
           resolve(
             input.versionSpec,
             input.platform as NodeJS.Platform,
-            input.architechure,
+            input.architecture,
             input.platformVersion
           )
         ).toEqual(expected);
@@ -323,7 +323,7 @@ describe('manifest', () => {
           input: {
             versionSpec: 'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a',
             platform: 'darwin',
-            architechure: 'x64'
+            architecture: 'x64'
           },
           expected: {
             version: 'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a',
@@ -345,7 +345,7 @@ describe('manifest', () => {
             versionSpec: 'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a',
             platform: 'ubuntu',
             platformVersion: '22.04',
-            architechure: 'x64'
+            architecture: 'x64'
           },
           expected: {
             version: 'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a',
@@ -369,7 +369,7 @@ describe('manifest', () => {
             versionSpec: 'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a',
             platform: 'ubuntu',
             platformVersion: '22.04',
-            architechure: 'arm64'
+            architecture: 'arm64'
           },
           expected: {
             version: 'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a',
@@ -393,7 +393,7 @@ describe('manifest', () => {
             versionSpec: 'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a',
             platform: 'win32',
             platformVersion: '10',
-            architechure: 'x64'
+            architecture: 'x64'
           },
           expected: {
             version: 'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a',
@@ -412,12 +412,12 @@ describe('manifest', () => {
             ]
           }
         }
-      ])('on $input.platform $input.architechure', ({ input, expected }) => {
+      ])('on $input.platform $input.architecture', ({ input, expected }) => {
         expect(
           resolve(
             input.versionSpec,
             input.platform as NodeJS.Platform,
-            input.architechure,
+            input.architecture,
             input.platformVersion
           )
         ).toEqual(expected);
