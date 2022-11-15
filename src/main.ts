@@ -7,16 +7,15 @@ import * as utils from './utils';
 
 export async function run() {
   try {
-    const versipnSpec = core.getInput('swift-version', { required: true });
+    const versionSpec = core.getInput('swift-version', { required: true });
     const arch = core.getInput('architecture') || process.arch;
 
-    if (versipnSpec.length === 0) {
+    if (versionSpec.length === 0) {
       core.setFailed('Missing `swift-version`.');
     }
 
-    // TODO: resolve win32 version id
-    const manifest = mm.resolve(
-      versipnSpec,
+    const manifest = await mm.resolve(
+      versionSpec,
       process.platform == 'linux'
         ? utils.getLinuxDistribID()
         : process.platform,
@@ -38,7 +37,7 @@ export async function run() {
     if (!toolPath) {
       throw new Error(
         [
-          `Version ${versipnSpec} with platform ${
+          `Version ${versionSpec} with platform ${
             process.platform == 'linux'
               ? utils.getLinuxDistribID()
               : process.platform
