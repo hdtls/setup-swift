@@ -14971,6 +14971,9 @@ function exportVariables(manifest, toolPath) {
         switch (manifest.files[0].platform) {
             case 'darwin':
                 const TOOLCHAINS = toolchains.parseBundleIDFromDirectory(toolPath);
+                if (!fs_1.default.existsSync(toolchains.getToolchainsDirectory())) {
+                    yield io.mkdirP(toolchains.getToolchainsDirectory());
+                }
                 const xctoolchain = path_1.default.join(toolchains.getToolchain(manifest.version));
                 if (fs_1.default.existsSync(xctoolchain)) {
                     yield io.rmRF(xctoolchain);
@@ -15317,7 +15320,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getXcodeDefaultToolchain = exports.getToolchain = exports.parseBundleIDFromDirectory = void 0;
+exports.getXcodeDefaultToolchain = exports.getToolchain = exports.getToolchainsDirectory = exports.parseBundleIDFromDirectory = void 0;
 const fs_1 = __importDefault(__nccwpck_require__(7147));
 const os_1 = __importDefault(__nccwpck_require__(2037));
 const path_1 = __importDefault(__nccwpck_require__(1017));
@@ -15332,8 +15335,12 @@ function parseBundleIDFromDirectory(at) {
     }
 }
 exports.parseBundleIDFromDirectory = parseBundleIDFromDirectory;
+function getToolchainsDirectory() {
+    return path_1.default.join(os_1.default.homedir(), '/Library/Developer/Toolchains');
+}
+exports.getToolchainsDirectory = getToolchainsDirectory;
 function getToolchain(named) {
-    return path_1.default.join(os_1.default.homedir(), '/Library/Developer/Toolchains', `${named}.xctoolchain`);
+    return path_1.default.join(getToolchainsDirectory(), `${named}.xctoolchain`);
 }
 exports.getToolchain = getToolchain;
 function getXcodeDefaultToolchain() {

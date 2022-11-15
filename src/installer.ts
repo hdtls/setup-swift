@@ -66,6 +66,10 @@ export async function exportVariables(
     case 'darwin':
       const TOOLCHAINS = toolchains.parseBundleIDFromDirectory(toolPath);
 
+      if (!fs.existsSync(toolchains.getToolchainsDirectory())) {
+        await io.mkdirP(toolchains.getToolchainsDirectory());
+      }
+
       const xctoolchain = path.join(toolchains.getToolchain(manifest.version));
       if (fs.existsSync(xctoolchain)) {
         await io.rmRF(xctoolchain);
