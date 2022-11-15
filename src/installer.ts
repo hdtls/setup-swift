@@ -64,8 +64,6 @@ export async function exportVariables(
 
   switch (manifest.files[0].platform) {
     case 'darwin':
-      const TOOLCHAINS = toolchains.parseBundleIDFromDirectory(toolPath);
-
       if (!fs.existsSync(toolchains.getToolchainsDirectory())) {
         await io.mkdirP(toolchains.getToolchainsDirectory());
       }
@@ -81,6 +79,8 @@ export async function exportVariables(
 
       // Xcode only recognize toolchains that located in Library/Developer/Toolchains
       fs.symlinkSync(toolPath, xctoolchain);
+
+      const TOOLCHAINS = toolchains.parseBundleIDFromDirectory(toolPath);
 
       core.debug(`export TOOLCHAINS environment variable: ${TOOLCHAINS}`);
 

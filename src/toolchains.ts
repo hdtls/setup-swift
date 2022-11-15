@@ -1,21 +1,25 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import * as pl from 'plist';
 
 export function parseBundleIDFromDirectory(at: string): string {
-  try {
-    const { CFBundleIdentifier, Identifier } = pl.parse(
-      fs.readFileSync(path.join(at, 'Info.plist'), 'utf8')
-    ) as {
-      CFBundleIdentifier?: string;
-      Identifier?: string;
-    };
+  let pl = path.join(at, 'Info.plist');
 
-    return CFBundleIdentifier || Identifier || '';
-  } catch (error) {
-    return '';
+  if (!fs.existsSync(pl)) {
+    pl = path.join(at, 'ToolchainInfo.plist');
+
+    if (!fs.existsSync(pl)) {
+      return '';
+    }
   }
+
+  return (
+    fs
+      .readFileSync(pl, 'utf8')
+      .match(
+        /(CFBundle)?Identifier<\/key>\n*\t*<string>(?<TOOLCHAINS>.*)<\/string>/
+      )?.groups?.TOOLCHAINS || ''
+  );
 }
 
 export function getToolchainsDirectory(): string {
