@@ -1,38 +1,39 @@
 import * as tc from './tool-cache';
+import * as fs from 'fs';
 
-export function resolve(
+export async function resolve(
   versionSpec: string,
   platform: string,
   architecture: string,
   platformVersion?: string
-): tc.IToolRelease {
+): Promise<tc.IToolRelease> {
   let SWIFT_VERSION = versionSpec;
   let SWIFT_BRANCH = '';
 
-  let re = /^\d+\.\d+(\.\d+)?$/;
-  let hasMatch = false;
-  if (re.test(versionSpec)) {
+  if (/^\d+\.\d+(\.\d+)?$/.test(versionSpec)) {
     SWIFT_BRANCH = `swift-${versionSpec}-release`;
     SWIFT_VERSION = `swift-${versionSpec}-RELEASE`;
-    hasMatch = true;
-  }
-
-  re = /^swift-DEVELOPMENT-.+-a$/;
-  if (re.test(versionSpec) && !hasMatch) {
+  } else if (
+    /^swift-DEVELOPMENT-.+-a$/.test(versionSpec) ||
+    /^nightly-main$/.test(versionSpec)
+  ) {
     SWIFT_BRANCH = 'development';
-    hasMatch = true;
-  }
-
-  re = /^swift-\d+\.\d+(\.\d+)?-RELEASE$/;
-  if (re.test(versionSpec) && !hasMatch) {
+  } else if (/^swift-\d+\.\d+(\.\d+)?-RELEASE$/.test(versionSpec)) {
     SWIFT_BRANCH = versionSpec.toLowerCase();
-    hasMatch = true;
-  }
-
-  re = /^swift-(\d+\.\d+(\.\d+)?)-DEVELOPMENT-.+-a$/;
-  if (re.test(versionSpec) && !hasMatch) {
-    SWIFT_BRANCH = `swift-${versionSpec.replace(re, '$1')}-branch`;
-    hasMatch = true;
+  } else if (/^swift-(\d+\.\d+(\.\d+)?)-DEVELOPMENT-.+-a$/.test(versionSpec)) {
+    SWIFT_BRANCH = `swift-${versionSpec.replace(
+      /^swift-(\d+\.\d+(\.\d+)?)-DEVELOPMENT-.+-a$/,
+      '$1'
+    )}-branch`;
+  } else if (/^nightly-(\d+.\d+)$/.test(versionSpec)) {
+    SWIFT_BRANCH = `swift-${versionSpec.replace(
+      /^nightly-(\d+.\d+)$/,
+      '$1'
+    )}-branch`;
+  } else {
+    throw new Error(
+      `Cannot create release file for an unsupported version: ${versionSpec}`
+    );
   }
 
   let SWIFT_PLATFORM = '';
@@ -41,6 +42,11 @@ export function resolve(
   switch (platform) {
     case 'darwin':
       SWIFT_PLATFORM = 'xcode';
+      SWIFT_VERSION = await resolveLatestBuildIfPossible(
+        SWIFT_VERSION,
+        SWIFT_BRANCH,
+        SWIFT_PLATFORM
+      );
       filename = `${SWIFT_VERSION}-osx.pkg`;
       break;
     case 'ubuntu':
@@ -49,10 +55,20 @@ export function resolve(
       SWIFT_PLATFORM = `${platform}${platformVersion || ''}${
         architecture == 'arm64' ? '-aarch64' : ''
       }`;
+      SWIFT_VERSION = await resolveLatestBuildIfPossible(
+        SWIFT_VERSION,
+        SWIFT_BRANCH,
+        SWIFT_PLATFORM.replace('.', '')
+      );
       filename = `${SWIFT_VERSION}-${SWIFT_PLATFORM}.tar.gz`;
       break;
     case 'win32':
       SWIFT_PLATFORM = `windows${platformVersion || ''}`;
+      SWIFT_VERSION = await resolveLatestBuildIfPossible(
+        SWIFT_VERSION,
+        SWIFT_BRANCH,
+        SWIFT_PLATFORM.replace('.', '')
+      );
       filename = `${SWIFT_VERSION}-${SWIFT_PLATFORM}.exe`;
       break;
     default:
@@ -75,4 +91,26 @@ export function resolve(
       }
     ]
   };
+}
+
+async function resolveLatestBuildIfPossible(
+  versionSpec: string,
+  branch: string,
+  platform: string
+) {
+  if (
+    /^nightly-(main|\d+.\d+)$/.test(versionSpec) &&
+    /^(development|swift-\d+.\d+-branch)$/.test(branch)
+  ) {
+    const url = `https://download.swift.org/${branch}/${platform}/latest-build.yml`;
+    const path = await tc.downloadTool(url);
+    return fs.existsSync(path)
+      ? fs
+          .readFileSync(path)
+          .toString()
+          .match(/dir: ?(?<version>.*)/)?.groups?.version || ''
+      : '';
+  } else {
+    return versionSpec;
+  }
 }

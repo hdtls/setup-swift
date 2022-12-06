@@ -6873,8 +6873,7 @@ function run() {
             if (versipnSpec.length === 0) {
                 core.setFailed('Missing `swift-version`.');
             }
-            // TODO: resolve win32 version id
-            const manifest = mm.resolve(versipnSpec, process.platform == 'linux'
+            const manifest = yield mm.resolve(versipnSpec, process.platform == 'linux'
                 ? utils.getLinuxDistribID()
                 : process.platform, arch, process.platform == 'linux'
                 ? utils.getLinuxDistribRelease()
@@ -6907,74 +6906,130 @@ exports.run = run;
 /***/ }),
 
 /***/ 1635:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.resolve = void 0;
+const tc = __importStar(__nccwpck_require__(9456));
+const fs = __importStar(__nccwpck_require__(7147));
 function resolve(versionSpec, platform, architecture, platformVersion) {
-    let SWIFT_VERSION = versionSpec;
-    let SWIFT_BRANCH = '';
-    let re = /^\d+\.\d+(\.\d+)?$/;
-    let hasMatch = false;
-    if (re.test(versionSpec)) {
-        SWIFT_BRANCH = `swift-${versionSpec}-release`;
-        SWIFT_VERSION = `swift-${versionSpec}-RELEASE`;
-        hasMatch = true;
-    }
-    re = /^swift-DEVELOPMENT-.+-a$/;
-    if (re.test(versionSpec) && !hasMatch) {
-        SWIFT_BRANCH = 'development';
-        hasMatch = true;
-    }
-    re = /^swift-\d+\.\d+(\.\d+)?-RELEASE$/;
-    if (re.test(versionSpec) && !hasMatch) {
-        SWIFT_BRANCH = versionSpec.toLowerCase();
-        hasMatch = true;
-    }
-    re = /^swift-(\d+\.\d+(\.\d+)?)-DEVELOPMENT-.+-a$/;
-    if (re.test(versionSpec) && !hasMatch) {
-        SWIFT_BRANCH = `swift-${versionSpec.replace(re, '$1')}-branch`;
-        hasMatch = true;
-    }
-    let SWIFT_PLATFORM = '';
-    let filename = '';
-    switch (platform) {
-        case 'darwin':
-            SWIFT_PLATFORM = 'xcode';
-            filename = `${SWIFT_VERSION}-osx.pkg`;
-            break;
-        case 'ubuntu':
-        case 'centos':
-        case 'amazonlinux':
-            SWIFT_PLATFORM = `${platform}${platformVersion || ''}${architecture == 'arm64' ? '-aarch64' : ''}`;
-            filename = `${SWIFT_VERSION}-${SWIFT_PLATFORM}.tar.gz`;
-            break;
-        case 'win32':
-            SWIFT_PLATFORM = `windows${platformVersion || ''}`;
-            filename = `${SWIFT_VERSION}-${SWIFT_PLATFORM}.exe`;
-            break;
-        default:
-            throw new Error('Cannot create release file for an unsupported OS');
-    }
-    const _SWIFT_PLATFORM = SWIFT_PLATFORM.replace('.', '');
-    return {
-        version: SWIFT_VERSION,
-        stable: /^swift-\d+\.\d+(\.\d+)?-RELEASE$/.test(SWIFT_VERSION),
-        release_url: '',
-        files: [
-            {
-                filename: filename,
-                platform: platform,
-                platform_version: platformVersion,
-                arch: architecture,
-                download_url: `https://download.swift.org/${SWIFT_BRANCH}/${_SWIFT_PLATFORM}/${SWIFT_VERSION}/${filename}`
-            }
-        ]
-    };
+    return __awaiter(this, void 0, void 0, function* () {
+        let SWIFT_VERSION = versionSpec;
+        let SWIFT_BRANCH = '';
+        if (/^\d+\.\d+(\.\d+)?$/.test(versionSpec)) {
+            SWIFT_BRANCH = `swift-${versionSpec}-release`;
+            SWIFT_VERSION = `swift-${versionSpec}-RELEASE`;
+        }
+        else if (/^swift-DEVELOPMENT-.+-a$/.test(versionSpec) ||
+            /^nightly-main$/.test(versionSpec)) {
+            SWIFT_BRANCH = 'development';
+        }
+        else if (/^swift-\d+\.\d+(\.\d+)?-RELEASE$/.test(versionSpec)) {
+            SWIFT_BRANCH = versionSpec.toLowerCase();
+        }
+        else if (/^swift-(\d+\.\d+(\.\d+)?)-DEVELOPMENT-.+-a$/.test(versionSpec)) {
+            SWIFT_BRANCH = `swift-${versionSpec.replace(/^swift-(\d+\.\d+(\.\d+)?)-DEVELOPMENT-.+-a$/, '$1')}-branch`;
+        }
+        else if (/^nightly-(\d+.\d+)$/.test(versionSpec)) {
+            SWIFT_BRANCH = `swift-${versionSpec.replace(/^nightly-(\d+.\d+)$/, '$1')}-branch`;
+        }
+        else {
+            throw new Error(`Cannot create release file for an unsupported version: ${versionSpec}`);
+        }
+        let SWIFT_PLATFORM = '';
+        let filename = '';
+        switch (platform) {
+            case 'darwin':
+                SWIFT_PLATFORM = 'xcode';
+                SWIFT_VERSION = yield resolveLatestBuildIfPossible(SWIFT_VERSION, SWIFT_BRANCH, SWIFT_PLATFORM);
+                filename = `${SWIFT_VERSION}-osx.pkg`;
+                break;
+            case 'ubuntu':
+            case 'centos':
+            case 'amazonlinux':
+                SWIFT_PLATFORM = `${platform}${platformVersion || ''}${architecture == 'arm64' ? '-aarch64' : ''}`;
+                SWIFT_VERSION = yield resolveLatestBuildIfPossible(SWIFT_VERSION, SWIFT_BRANCH, SWIFT_PLATFORM.replace('.', ''));
+                filename = `${SWIFT_VERSION}-${SWIFT_PLATFORM}.tar.gz`;
+                break;
+            case 'win32':
+                SWIFT_PLATFORM = `windows${platformVersion || ''}`;
+                SWIFT_VERSION = yield resolveLatestBuildIfPossible(SWIFT_VERSION, SWIFT_BRANCH, SWIFT_PLATFORM.replace('.', ''));
+                filename = `${SWIFT_VERSION}-${SWIFT_PLATFORM}.exe`;
+                break;
+            default:
+                throw new Error('Cannot create release file for an unsupported OS');
+        }
+        const _SWIFT_PLATFORM = SWIFT_PLATFORM.replace('.', '');
+        return {
+            version: SWIFT_VERSION,
+            stable: /^swift-\d+\.\d+(\.\d+)?-RELEASE$/.test(SWIFT_VERSION),
+            release_url: '',
+            files: [
+                {
+                    filename: filename,
+                    platform: platform,
+                    platform_version: platformVersion,
+                    arch: architecture,
+                    download_url: `https://download.swift.org/${SWIFT_BRANCH}/${_SWIFT_PLATFORM}/${SWIFT_VERSION}/${filename}`
+                }
+            ]
+        };
+    });
 }
 exports.resolve = resolve;
+function resolveLatestBuildIfPossible(versionSpec, branch, platform) {
+    var _a, _b;
+    return __awaiter(this, void 0, void 0, function* () {
+        if (/^nightly-(main|\d+.\d+)$/.test(versionSpec) &&
+            /^(development|swift-\d+.\d+-branch)$/.test(branch)) {
+            const url = `https://download.swift.org/${branch}/${platform}/latest-build.yml`;
+            const path = yield tc.downloadTool(url);
+            return fs.existsSync(path)
+                ? ((_b = (_a = fs
+                    .readFileSync(path)
+                    .toString()
+                    .match(/dir: ?(?<version>.*)/)) === null || _a === void 0 ? void 0 : _a.groups) === null || _b === void 0 ? void 0 : _b.version) || ''
+                : '';
+        }
+        else {
+            return versionSpec;
+        }
+    });
+}
 
 
 /***/ }),

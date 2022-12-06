@@ -1,427 +1,185 @@
 import { resolve } from '../src/manifest';
+import fs from 'fs';
+import * as tc from '../src/tool-cache';
+
+jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+jest.spyOn(tc, 'downloadTool').mockReturnValue(Promise.resolve(''));
 
 describe('manifest', () => {
-  describe('resolve', () => {
-    describe('with semantic version convertible', () => {
+  describe.each(['5.7.1', '5.7', 'swift-5.7.1-RELEASE', 'swift-5.7-RELEASE'])(
+    'resolve stable version %s',
+    versionSpec => {
       it.each([
+        { platform: 'darwin', architecture: 'x64' },
+        { platform: 'ubuntu', architecture: 'x64', platformVersion: '22.04' },
         {
-          input: {
-            versionSpec: '5.7.1',
-            platform: 'darwin',
-            architecture: 'x64'
-          },
-          expected: {
-            version: 'swift-5.7.1-RELEASE',
-            stable: true,
-            release_url: '',
-            files: [
-              {
-                filename: 'swift-5.7.1-RELEASE-osx.pkg',
-                platform: 'darwin',
-                download_url:
-                  'https://download.swift.org/swift-5.7.1-release/xcode/swift-5.7.1-RELEASE/swift-5.7.1-RELEASE-osx.pkg',
-                arch: 'x64'
-              }
-            ]
-          }
+          platform: 'ubuntu',
+          architecture: 'arm64',
+          platformVersion: '22.04'
         },
-        {
-          input: {
-            versionSpec: '5.7.1',
-            platform: 'ubuntu',
-            platformVersion: '22.04',
-            architecture: 'x64'
-          },
-          expected: {
-            version: 'swift-5.7.1-RELEASE',
-            stable: true,
-            release_url: '',
-            files: [
-              {
-                filename: 'swift-5.7.1-RELEASE-ubuntu22.04.tar.gz',
-                platform: 'ubuntu',
-                platform_version: '22.04',
-                download_url:
-                  'https://download.swift.org/swift-5.7.1-release/ubuntu2204/swift-5.7.1-RELEASE/swift-5.7.1-RELEASE-ubuntu22.04.tar.gz',
-                arch: 'x64'
-              }
-            ]
-          }
-        },
-        {
-          input: {
-            versionSpec: '5.7.1',
-            platform: 'ubuntu',
-            platformVersion: '22.04',
-            architecture: 'arm64'
-          },
-          expected: {
-            version: 'swift-5.7.1-RELEASE',
-            stable: true,
-            release_url: '',
-            files: [
-              {
-                filename: 'swift-5.7.1-RELEASE-ubuntu22.04-aarch64.tar.gz',
-                platform: 'ubuntu',
-                platform_version: '22.04',
-                download_url:
-                  'https://download.swift.org/swift-5.7.1-release/ubuntu2204-aarch64/swift-5.7.1-RELEASE/swift-5.7.1-RELEASE-ubuntu22.04-aarch64.tar.gz',
-                arch: 'arm64'
-              }
-            ]
-          }
-        },
-        {
-          input: {
-            versionSpec: '5.7.1',
-            platform: 'win32',
-            platformVersion: '10',
-            architecture: 'x64'
-          },
-          expected: {
-            version: 'swift-5.7.1-RELEASE',
-            stable: true,
-            release_url: '',
-            files: [
-              {
-                filename: 'swift-5.7.1-RELEASE-windows10.exe',
-                platform: 'win32',
-                platform_version: '10',
-                download_url:
-                  'https://download.swift.org/swift-5.7.1-release/windows10/swift-5.7.1-RELEASE/swift-5.7.1-RELEASE-windows10.exe',
-                arch: 'x64'
-              }
-            ]
-          }
-        }
-      ])('on $input.platform $input.architecture', ({ input, expected }) => {
-        expect(
-          resolve(
-            input.versionSpec,
-            input.platform as NodeJS.Platform,
-            input.architecture,
-            input.platformVersion
-          )
-        ).toEqual(expected);
-      });
-    });
+        { platform: 'win32', architecture: 'x64', platformVersion: '10' }
+      ])(
+        'on $platform $architecture',
+        async ({ platform, architecture, platformVersion }) => {
+          const actual = await resolve(
+            versionSpec,
+            platform,
+            architecture,
+            platformVersion
+          );
 
-    describe('with release tag', () => {
-      it.each([
-        {
-          input: {
-            versionSpec: 'swift-5.7.1-RELEASE',
-            platform: 'darwin',
-            architecture: 'x64'
-          },
-          expected: {
-            version: 'swift-5.7.1-RELEASE',
-            stable: true,
-            release_url: '',
-            files: [
-              {
-                filename: 'swift-5.7.1-RELEASE-osx.pkg',
-                platform: 'darwin',
-                download_url:
-                  'https://download.swift.org/swift-5.7.1-release/xcode/swift-5.7.1-RELEASE/swift-5.7.1-RELEASE-osx.pkg',
-                arch: 'x64'
-              }
-            ]
-          }
-        },
-        {
-          input: {
-            versionSpec: 'swift-5.7.1-RELEASE',
-            platform: 'ubuntu',
-            platformVersion: '22.04',
-            architecture: 'x64'
-          },
-          expected: {
-            version: 'swift-5.7.1-RELEASE',
-            stable: true,
-            release_url: '',
-            files: [
-              {
-                filename: 'swift-5.7.1-RELEASE-ubuntu22.04.tar.gz',
-                platform: 'ubuntu',
-                platform_version: '22.04',
-                download_url:
-                  'https://download.swift.org/swift-5.7.1-release/ubuntu2204/swift-5.7.1-RELEASE/swift-5.7.1-RELEASE-ubuntu22.04.tar.gz',
-                arch: 'x64'
-              }
-            ]
-          }
-        },
-        {
-          input: {
-            versionSpec: 'swift-5.7.1-RELEASE',
-            platform: 'ubuntu',
-            platformVersion: '22.04',
-            architecture: 'arm64'
-          },
-          expected: {
-            version: 'swift-5.7.1-RELEASE',
-            stable: true,
-            release_url: '',
-            files: [
-              {
-                filename: 'swift-5.7.1-RELEASE-ubuntu22.04-aarch64.tar.gz',
-                platform: 'ubuntu',
-                platform_version: '22.04',
-                download_url:
-                  'https://download.swift.org/swift-5.7.1-release/ubuntu2204-aarch64/swift-5.7.1-RELEASE/swift-5.7.1-RELEASE-ubuntu22.04-aarch64.tar.gz',
-                arch: 'arm64'
-              }
-            ]
-          }
-        },
-        {
-          input: {
-            versionSpec: 'swift-5.7.1-RELEASE',
-            platform: 'win32',
-            platformVersion: '10',
-            architecture: 'x64'
-          },
-          expected: {
-            version: 'swift-5.7.1-RELEASE',
-            stable: true,
-            release_url: '',
-            files: [
-              {
-                filename: 'swift-5.7.1-RELEASE-windows10.exe',
-                platform: 'win32',
-                platform_version: '10',
-                download_url:
-                  'https://download.swift.org/swift-5.7.1-release/windows10/swift-5.7.1-RELEASE/swift-5.7.1-RELEASE-windows10.exe',
-                arch: 'x64'
-              }
-            ]
-          }
-        }
-      ])('on $input.platform $input.architecture', ({ input, expected }) => {
-        expect(
-          resolve(
-            input.versionSpec,
-            input.platform as NodeJS.Platform,
-            input.architecture,
-            input.platformVersion
+          let SWIFT_VERSION = /^swift-(\d+.\d+(.\d+)?)-RELEASE$/.test(
+            versionSpec
           )
-        ).toEqual(expected);
-      });
-    });
+            ? versionSpec
+            : `swift-${versionSpec}-RELEASE`;
+          let SWIFT_BRANCH = SWIFT_VERSION.toLowerCase();
+          let SWIFT_PLATFORM = '';
+          let filename = '';
 
-    describe('with trunk development (main) snapshot', () => {
-      it.each([
-        {
-          input: {
-            versionSpec: 'swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a',
-            platform: 'darwin',
-            architecture: 'x64'
-          },
-          expected: {
-            version: 'swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a',
-            stable: false,
-            release_url: '',
-            files: [
-              {
-                filename: 'swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a-osx.pkg',
-                platform: 'darwin',
-                download_url:
-                  'https://download.swift.org/development/xcode/swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a/swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a-osx.pkg',
-                arch: 'x64'
-              }
-            ]
+          switch (platform) {
+            case 'darwin':
+              filename = `${SWIFT_VERSION}-osx.pkg`;
+              SWIFT_PLATFORM = 'xcode';
+              break;
+            case 'win32':
+              filename = `${SWIFT_VERSION}-windows${platformVersion}.exe`;
+              SWIFT_PLATFORM = `windows${platformVersion?.replace('.', '')}`;
+              break;
+            default:
+              filename =
+                architecture == 'arm64'
+                  ? `${SWIFT_VERSION}-${platform}${platformVersion}-aarch64.tar.gz`
+                  : `${SWIFT_VERSION}-${platform}${platformVersion}.tar.gz`;
+              SWIFT_PLATFORM =
+                architecture == 'arm64'
+                  ? `${platform}${platformVersion?.replace('.', '')}-aarch64`
+                  : `${platform}${platformVersion?.replace('.', '')}`;
+              break;
           }
-        },
-        {
-          input: {
-            versionSpec: 'swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a',
-            platform: 'ubuntu',
-            platformVersion: '22.04',
-            architecture: 'x64'
-          },
-          expected: {
-            version: 'swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a',
-            stable: false,
-            release_url: '',
-            files: [
-              {
-                filename:
-                  'swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a-ubuntu22.04.tar.gz',
-                platform: 'ubuntu',
-                platform_version: '22.04',
-                download_url:
-                  'https://download.swift.org/development/ubuntu2204/swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a/swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a-ubuntu22.04.tar.gz',
-                arch: 'x64'
-              }
-            ]
-          }
-        },
-        {
-          input: {
-            versionSpec: 'swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a',
-            platform: 'ubuntu',
-            platformVersion: '22.04',
-            architecture: 'arm64'
-          },
-          expected: {
-            version: 'swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a',
-            stable: false,
-            release_url: '',
-            files: [
-              {
-                filename:
-                  'swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a-ubuntu22.04-aarch64.tar.gz',
-                platform: 'ubuntu',
-                platform_version: '22.04',
-                download_url:
-                  'https://download.swift.org/development/ubuntu2204-aarch64/swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a/swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a-ubuntu22.04-aarch64.tar.gz',
-                arch: 'arm64'
-              }
-            ]
-          }
-        },
-        {
-          input: {
-            versionSpec: 'swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a',
-            platform: 'win32',
-            platformVersion: '10',
-            architecture: 'x64'
-          },
-          expected: {
-            version: 'swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a',
-            stable: false,
-            release_url: '',
-            files: [
-              {
-                filename:
-                  'swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a-windows10.exe',
-                platform: 'win32',
-                platform_version: '10',
-                download_url:
-                  'https://download.swift.org/development/windows10/swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a/swift-DEVELOPMENT-SNAPSHOT-2022-11-03-a-windows10.exe',
-                arch: 'x64'
-              }
-            ]
-          }
-        }
-      ])('on $input.platform $input.architecture', ({ input, expected }) => {
-        expect(
-          resolve(
-            input.versionSpec,
-            input.platform as NodeJS.Platform,
-            input.architecture,
-            input.platformVersion
-          )
-        ).toEqual(expected);
-      });
-    });
 
-    describe('with development snapshot', () => {
-      it.each([
-        {
-          input: {
-            versionSpec: 'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a',
-            platform: 'darwin',
-            architecture: 'x64'
-          },
-          expected: {
-            version: 'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a',
-            stable: false,
+          const expected = {
+            version: SWIFT_VERSION,
+            stable: true,
             release_url: '',
             files: [
               {
-                filename: 'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a-osx.pkg',
-                platform: 'darwin',
-                download_url:
-                  'https://download.swift.org/swift-5.7-branch/xcode/swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a/swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a-osx.pkg',
-                arch: 'x64'
+                filename: filename,
+                platform: platform,
+                download_url: `https://download.swift.org/${SWIFT_BRANCH}/${SWIFT_PLATFORM}/${SWIFT_VERSION}/${filename}`,
+                arch: architecture,
+                platform_version: platformVersion
               }
             ]
-          }
-        },
-        {
-          input: {
-            versionSpec: 'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a',
-            platform: 'ubuntu',
-            platformVersion: '22.04',
-            architecture: 'x64'
-          },
-          expected: {
-            version: 'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a',
-            stable: false,
-            release_url: '',
-            files: [
-              {
-                filename:
-                  'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a-ubuntu22.04.tar.gz',
-                platform: 'ubuntu',
-                platform_version: '22.04',
-                download_url:
-                  'https://download.swift.org/swift-5.7-branch/ubuntu2204/swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a/swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a-ubuntu22.04.tar.gz',
-                arch: 'x64'
-              }
-            ]
-          }
-        },
-        {
-          input: {
-            versionSpec: 'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a',
-            platform: 'ubuntu',
-            platformVersion: '22.04',
-            architecture: 'arm64'
-          },
-          expected: {
-            version: 'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a',
-            stable: false,
-            release_url: '',
-            files: [
-              {
-                filename:
-                  'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a-ubuntu22.04-aarch64.tar.gz',
-                platform: 'ubuntu',
-                platform_version: '22.04',
-                download_url:
-                  'https://download.swift.org/swift-5.7-branch/ubuntu2204-aarch64/swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a/swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a-ubuntu22.04-aarch64.tar.gz',
-                arch: 'arm64'
-              }
-            ]
-          }
-        },
-        {
-          input: {
-            versionSpec: 'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a',
-            platform: 'win32',
-            platformVersion: '10',
-            architecture: 'x64'
-          },
-          expected: {
-            version: 'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a',
-            stable: false,
-            release_url: '',
-            files: [
-              {
-                filename:
-                  'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a-windows10.exe',
-                platform: 'win32',
-                platform_version: '10',
-                download_url:
-                  'https://download.swift.org/swift-5.7-branch/windows10/swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a/swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a-windows10.exe',
-                arch: 'x64'
-              }
-            ]
-          }
+          };
+          expect(actual).toStrictEqual(expected);
         }
-      ])('on $input.platform $input.architecture', ({ input, expected }) => {
-        expect(
-          resolve(
-            input.versionSpec,
-            input.platform as NodeJS.Platform,
-            input.architecture,
-            input.platformVersion
-          )
-        ).toEqual(expected);
-      });
-    });
+      );
+    }
+  );
+
+  describe.each([
+    'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a',
+    'swift-DEVELOPMENT-SNAPSHOT-2022-12-05-a',
+    'nightly-5.7',
+    'nightly-main'
+  ])('resolve nightly version %s', versionSpec => {
+    it.each([
+      { platform: 'darwin', architecture: 'x64' },
+      { platform: 'ubuntu', architecture: 'x64', platformVersion: '22.04' },
+      {
+        platform: 'ubuntu',
+        architecture: 'arm64',
+        platformVersion: '22.04'
+      },
+      { platform: 'win32', architecture: 'x64', platformVersion: '10' }
+    ])(
+      'on $platform $architecture',
+      async ({ platform, architecture, platformVersion }) => {
+        if (
+          /^swift-DEVELOPMENT-.+/.test(versionSpec) ||
+          /^nightly-main$/.test(versionSpec)
+        ) {
+          jest.spyOn(fs, 'readFileSync')
+            .mockReturnValueOnce(`date: 2022-12-05 10:10:00-06:00
+debug_info: swift-DEVELOPMENT-SNAPSHOT-2022-12-05-a-osx-symbols.pkg
+dir: swift-DEVELOPMENT-SNAPSHOT-2022-12-05-a
+download: swift-DEVELOPMENT-SNAPSHOT-2022-12-05-a-osx.pkg
+name: Swift Development Snapshot
+`);
+        } else {
+          jest.spyOn(fs, 'readFileSync')
+            .mockReturnValueOnce(`date: 2022-10-03 10:10:00-06:00
+debug_info: swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a-osx-symbols.pkg
+dir: swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a
+download: swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a-osx.pkg
+name: Swift Development Snapshot
+`);
+        }
+
+        const actual = await resolve(
+          versionSpec,
+          platform,
+          architecture,
+          platformVersion
+        );
+
+        let SWIFT_VERSION = /^swift(-(\d+.\d+(.\d+)?))?-DEVELOPMENT-.+-a/.test(
+          versionSpec
+        )
+          ? versionSpec
+          : /^nightly-main$/.test(versionSpec)
+          ? 'swift-DEVELOPMENT-SNAPSHOT-2022-12-05-a'
+          : 'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a';
+
+        let SWIFT_BRANCH = /^swift-(\d+.\d+)-DEVELOPMENT-.+-a/.test(
+          SWIFT_VERSION
+        )
+          ? `swift-${SWIFT_VERSION.replace(
+              /^swift-(\d+.\d+)-DEVELOPMENT-.+-a$/,
+              '$1'
+            )}-branch`
+          : 'development';
+        let SWIFT_PLATFORM = '';
+        let filename = '';
+
+        switch (platform) {
+          case 'darwin':
+            filename = `${SWIFT_VERSION}-osx.pkg`;
+            SWIFT_PLATFORM = 'xcode';
+            break;
+          case 'win32':
+            filename = `${SWIFT_VERSION}-windows${platformVersion}.exe`;
+            SWIFT_PLATFORM = `windows${platformVersion?.replace('.', '')}`;
+            break;
+          default:
+            filename =
+              architecture == 'arm64'
+                ? `${SWIFT_VERSION}-${platform}${platformVersion}-aarch64.tar.gz`
+                : `${SWIFT_VERSION}-${platform}${platformVersion}.tar.gz`;
+            SWIFT_PLATFORM =
+              architecture == 'arm64'
+                ? `${platform}${platformVersion?.replace('.', '')}-aarch64`
+                : `${platform}${platformVersion?.replace('.', '')}`;
+            break;
+        }
+
+        const expected = {
+          version: SWIFT_VERSION,
+          stable: false,
+          release_url: '',
+          files: [
+            {
+              filename: filename,
+              platform: platform,
+              download_url: `https://download.swift.org/${SWIFT_BRANCH}/${SWIFT_PLATFORM}/${SWIFT_VERSION}/${filename}`,
+              arch: architecture,
+              platform_version: platformVersion
+            }
+          ]
+        };
+        expect(actual).toStrictEqual(expected);
+      }
+    );
   });
 });
