@@ -115,4 +115,15 @@ CENTOS_MANTISBT_PROJECT_VERSION="8"`,
       }
     );
   });
+
+  describe('resolve cache version', () => {
+    it.each([
+      ['swift-5.7.1-RELEASE', '5.7.1'],
+      ['swift-5.7-RELEASE', '5.7'],
+      ['swift-DEVELOPMENT-SNAPSHOT-2022-12-05-a', 'nightly/main'],
+      ['swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a', 'nightly/5.7']
+    ])('from %s', (versionSpec, expected) => {
+      expect(utils.getCacheVersion(versionSpec)).toBe(expected);
+    });
+  });
 });

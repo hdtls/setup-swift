@@ -6603,7 +6603,7 @@ function find(manifest) {
                 }
             }
         }
-        toolPath = tc.find('swift', manifest.version, manifest.files[0].arch);
+        toolPath = tc.find('swift', manifest.version);
         if (toolPath) {
             return toolPath;
         }
@@ -6868,12 +6868,12 @@ const utils = __importStar(__nccwpck_require__(1314));
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const versipnSpec = core.getInput('swift-version', { required: true });
+            const versionSpec = core.getInput('swift-version', { required: true });
             const arch = core.getInput('architecture') || process.arch;
-            if (versipnSpec.length === 0) {
+            if (versionSpec.length === 0) {
                 core.setFailed('Missing `swift-version`.');
             }
-            const manifest = yield mm.resolve(versipnSpec, process.platform == 'linux'
+            const manifest = yield mm.resolve(versionSpec, process.platform == 'linux'
                 ? utils.getLinuxDistribID()
                 : process.platform, arch, process.platform == 'linux'
                 ? utils.getLinuxDistribRelease()
@@ -6887,7 +6887,7 @@ function run() {
             }
             if (!toolPath) {
                 throw new Error([
-                    `Version ${versipnSpec} with platform ${process.platform == 'linux'
+                    `Version ${versionSpec} with platform ${process.platform == 'linux'
                         ? utils.getLinuxDistribID()
                         : process.platform} not found`,
                     `The list of all available versions can be found here: https://www.swift.org/download`
@@ -7196,7 +7196,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getLinuxDistribID = exports.getLinuxDistribRelease = exports.__DISTRIB__ = exports.getVersion = void 0;
+exports.getCacheVersion = exports.getLinuxDistribID = exports.getLinuxDistribRelease = exports.__DISTRIB__ = exports.getVersion = void 0;
 const fs_1 = __importDefault(__nccwpck_require__(7147));
 function getVersion(message) {
     const re = /.*Swift version (\d+\.\d+(\.\d+)?(-dev)?).*/is;
@@ -7269,6 +7269,21 @@ function getLinuxDistribID() {
     return distrib_id == 'amzn' ? 'amazonlinux' : distrib_id || '';
 }
 exports.getLinuxDistribID = getLinuxDistribID;
+function getCacheVersion(versionSpec) {
+    let version = '';
+    if (/^swift-\d+.\d+(.\d+)?-RELEASE/.test(versionSpec)) {
+        version = versionSpec.replace(/^swift-(\d+.\d+(.\d+)?)-RELEASE/, '$1');
+    }
+    else if (/^swift-\d+.\d+-DEVELOPMENT-.+/.test(versionSpec)) {
+        version = 'nightly/';
+        version += versionSpec.replace(/^swift-(\d+.\d+(.\d+)?)-DEVELOPMENT-.+/, '$1');
+    }
+    else {
+        version = 'nightly/main';
+    }
+    return version;
+}
+exports.getCacheVersion = getCacheVersion;
 
 
 /***/ }),
