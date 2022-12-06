@@ -25,7 +25,7 @@ export async function find(manifest: tc.IToolRelease) {
     }
   }
 
-  toolPath = tc.find('swift', manifest.version, manifest.files[0].arch);
+  toolPath = tc.find('swift', manifest.version);
 
   if (toolPath) {
     return toolPath;

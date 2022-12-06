@@ -79,3 +79,19 @@ export function getLinuxDistribID() {
 
   return distrib_id == 'amzn' ? 'amazonlinux' : distrib_id || '';
 }
+
+export function getCacheVersion(versionSpec: string) {
+  let version = '';
+  if (/^swift-\d+.\d+(.\d+)?-RELEASE/.test(versionSpec)) {
+    version = versionSpec.replace(/^swift-(\d+.\d+(.\d+)?)-RELEASE/, '$1');
+  } else if (/^swift-\d+.\d+-DEVELOPMENT-.+/.test(versionSpec)) {
+    version = 'nightly/';
+    version += versionSpec.replace(
+      /^swift-(\d+.\d+(.\d+)?)-DEVELOPMENT-.+/,
+      '$1'
+    );
+  } else {
+    version = 'nightly/main';
+  }
+  return version;
+}
