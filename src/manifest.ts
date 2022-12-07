@@ -98,10 +98,7 @@ async function resolveLatestBuildIfPossible(
   branch: string,
   platform: string
 ) {
-  if (
-    /^nightly-(main|\d+.\d+)$/.test(versionSpec) &&
-    /^(development|swift-\d+.\d+-branch)$/.test(branch)
-  ) {
+  if (/^(development|swift-\d+.\d+-branch)$/.test(branch)) {
     const url = `https://download.swift.org/${branch}/${platform}/latest-build.yml`;
     const path = await tc.downloadTool(url);
     return fs.existsSync(path)

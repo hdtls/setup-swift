@@ -7014,8 +7014,7 @@ exports.resolve = resolve;
 function resolveLatestBuildIfPossible(versionSpec, branch, platform) {
     var _a, _b;
     return __awaiter(this, void 0, void 0, function* () {
-        if (/^nightly-(main|\d+.\d+)$/.test(versionSpec) &&
-            /^(development|swift-\d+.\d+-branch)$/.test(branch)) {
+        if (/^(development|swift-\d+.\d+-branch)$/.test(branch)) {
             const url = `https://download.swift.org/${branch}/${platform}/latest-build.yml`;
             const path = yield tc.downloadTool(url);
             return fs.existsSync(path)
