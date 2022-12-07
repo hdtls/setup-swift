@@ -82,7 +82,8 @@ describe('manifest', () => {
     'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a',
     'swift-DEVELOPMENT-SNAPSHOT-2022-12-05-a',
     'nightly-5.7',
-    'nightly-main'
+    'nightly-main',
+    'nightly'
   ])('resolve nightly version %s', versionSpec => {
     it.each([
       { platform: 'darwin', architecture: 'x64' },
@@ -98,7 +99,7 @@ describe('manifest', () => {
       async ({ platform, architecture, platformVersion }) => {
         if (
           /^swift-DEVELOPMENT-.+/.test(versionSpec) ||
-          /^nightly-main$/.test(versionSpec)
+          /^nightly(-main)?$/.test(versionSpec)
         ) {
           jest.spyOn(fs, 'readFileSync')
             .mockReturnValueOnce(`date: 2022-12-05 10:10:00-06:00
@@ -128,7 +129,7 @@ name: Swift Development Snapshot
           versionSpec
         )
           ? versionSpec
-          : /^nightly-main$/.test(versionSpec)
+          : /^nightly(-main)?$/.test(versionSpec)
           ? 'swift-DEVELOPMENT-SNAPSHOT-2022-12-05-a'
           : 'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a';
 
