@@ -1,7 +1,6 @@
 import * as core from '@actions/core';
 import * as io from '@actions/io';
 import * as exec from '@actions/exec';
-import assert from 'assert';
 import fs from 'fs';
 import path from 'path';
 import * as gpg from './gpg';
@@ -10,8 +9,6 @@ import * as utils from './utils';
 import * as toolchains from './toolchains';
 
 export async function install(manifest: tc.IToolRelease) {
-  assert.ok(/^swift-/.test(manifest.version));
-
   let archivePath = '';
   let extractPath = '';
 
@@ -58,8 +55,6 @@ export async function exportVariables(
   manifest: tc.IToolRelease,
   toolPath: string
 ) {
-  assert.ok(/^swift-/.test(manifest.version));
-
   let message = '';
 
   switch (manifest.files[0].platform) {

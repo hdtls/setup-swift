@@ -3,6 +3,7 @@ import * as tc from '@actions/tool-cache';
 import assert from 'assert';
 import * as fs from 'fs';
 import path from 'path';
+import * as re from './re';
 import { getCacheVersion } from './utils';
 
 export {
@@ -15,7 +16,7 @@ export {
 export function find(toolName: string, versionSpec: string, arch?: string) {
   const version = getCacheVersion(versionSpec);
 
-  if (/^\d+.\d+(.\d+)?$/.test(version)) {
+  if (re.SWIFT_SEMANTIC_VERSION.test(version)) {
     return tc.find(toolName, version, arch);
   }
 
@@ -60,7 +61,7 @@ export async function cacheDir(
 ) {
   let version = getCacheVersion(versionSpec);
 
-  if (/^\d+.\d+(.\d+)?$/.test(version)) {
+  if (re.SWIFT_SEMANTIC_VERSION.test(version)) {
     if (/^\d+.\d+$/.test(version)) {
       version = version + '.0';
     }

@@ -1,5 +1,6 @@
 import * as tc from './tool-cache';
 import * as fs from 'fs';
+import * as re from './re';
 
 export async function resolve(
   versionSpec: string,
@@ -10,26 +11,18 @@ export async function resolve(
   let SWIFT_VERSION = versionSpec;
   let SWIFT_BRANCH = '';
 
-  if (/^\d+\.\d+(\.\d+)?$/.test(versionSpec)) {
+  if (re.SWIFT_SEMANTIC_VERSION.test(versionSpec)) {
     SWIFT_BRANCH = `swift-${versionSpec}-release`;
     SWIFT_VERSION = `swift-${versionSpec}-RELEASE`;
-  } else if (
-    /^swift-DEVELOPMENT-.+-a$/.test(versionSpec) ||
-    /^nightly(-main)?$/.test(versionSpec)
-  ) {
-    SWIFT_BRANCH = 'development';
-  } else if (/^swift-\d+\.\d+(\.\d+)?-RELEASE$/.test(versionSpec)) {
+  } else if (re.SWIFT_RELEASE.test(versionSpec)) {
     SWIFT_BRANCH = versionSpec.toLowerCase();
-  } else if (/^swift-(\d+\.\d+(\.\d+)?)-DEVELOPMENT-.+-a$/.test(versionSpec)) {
+  } else if (re.SWIFT_NIGHTLY.test(versionSpec)) {
     SWIFT_BRANCH = `swift-${versionSpec.replace(
-      /^swift-(\d+\.\d+(\.\d+)?)-DEVELOPMENT-.+-a$/,
-      '$1'
+      re.SWIFT_NIGHTLY,
+      '$2'
     )}-branch`;
-  } else if (/^nightly-(\d+.\d+)$/.test(versionSpec)) {
-    SWIFT_BRANCH = `swift-${versionSpec.replace(
-      /^nightly-(\d+.\d+)$/,
-      '$1'
-    )}-branch`;
+  } else if (re.SWIFT_MAINLINE_NIGHTLY.test(versionSpec)) {
+    SWIFT_BRANCH = 'development';
   } else {
     throw new Error(
       `Cannot create release file for an unsupported version: ${versionSpec}`
@@ -79,7 +72,7 @@ export async function resolve(
 
   return {
     version: SWIFT_VERSION,
-    stable: /^swift-\d+\.\d+(\.\d+)?-RELEASE$/.test(SWIFT_VERSION),
+    stable: re.SWIFT_RELEASE.test(SWIFT_VERSION),
     release_url: '',
     files: [
       {
