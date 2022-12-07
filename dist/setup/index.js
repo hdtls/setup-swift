@@ -6768,6 +6768,12 @@ function exportVariables(manifest, toolPath) {
         let message = '';
         switch (manifest.files[0].platform) {
             case 'darwin':
+                /**
+                 * Xcode find toolchains located in:
+                 *   /Library/Developer/Toolchains
+                 *   /Users/runner/Library/Developer/Toolchains
+                 *   /Applications/Xcode.app/Contents/Developer/Toolchains
+                 */
                 if (toolPath != toolchains.getXcodeDefaultToolchain()) {
                     if (!fs_1.default.existsSync(toolchains.getToolchainsDirectory())) {
                         yield io.mkdirP(toolchains.getToolchainsDirectory());
@@ -6779,27 +6785,20 @@ function exportVariables(manifest, toolPath) {
                     if (fs_1.default.existsSync(toolchains.getToolchain('swift-latest'))) {
                         yield io.rmRF(toolchains.getToolchain('swift-latest'));
                     }
-                    // Xcode only recognize toolchains that located in Library/Developer/Toolchains
                     fs_1.default.symlinkSync(toolPath, xctoolchain);
                 }
                 const TOOLCHAINS = toolchains.parseBundleIDFromDirectory(toolPath);
                 core.debug(`export TOOLCHAINS environment variable: ${TOOLCHAINS}`);
-                message = (yield exec.getExecOutput('xcrun', [
-                    '--toolchain',
-                    `${TOOLCHAINS}`,
-                    '--run',
-                    'swift',
-                    '--version'
-                ])).stdout;
                 core.exportVariable('TOOLCHAINS', TOOLCHAINS);
                 core.setOutput('TOOLCHAINS', TOOLCHAINS);
+                message = (yield exec.getExecOutput('xcrun', ['swift', '--version']))
+                    .stdout;
                 break;
             case 'ubuntu':
             case 'centos':
             case 'amazonlinux':
-                message = (yield exec.getExecOutput(path_1.default.join(toolPath, '/usr/bin/swift'), [
-                    '--version'
-                ])).stdout;
+                const commandLine = path_1.default.join(toolPath, '/usr/bin/swift');
+                message = (yield exec.getExecOutput(commandLine, ['--version'])).stdout;
                 break;
             default:
                 throw new Error(`Installing Swift on ${manifest.files[0].platform} is not supported yet`);

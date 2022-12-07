@@ -56,9 +56,14 @@ export async function exportVariables(
   toolPath: string
 ) {
   let message = '';
-
   switch (manifest.files[0].platform) {
     case 'darwin':
+      /**
+       * Xcode find toolchains located in:
+       *   /Library/Developer/Toolchains
+       *   /Users/runner/Library/Developer/Toolchains
+       *   /Applications/Xcode.app/Contents/Developer/Toolchains
+       */
       if (toolPath != toolchains.getXcodeDefaultToolchain()) {
         if (!fs.existsSync(toolchains.getToolchainsDirectory())) {
           await io.mkdirP(toolchains.getToolchainsDirectory());
@@ -75,35 +80,23 @@ export async function exportVariables(
           await io.rmRF(toolchains.getToolchain('swift-latest'));
         }
 
-        // Xcode only recognize toolchains that located in Library/Developer/Toolchains
         fs.symlinkSync(toolPath, xctoolchain);
       }
 
       const TOOLCHAINS = toolchains.parseBundleIDFromDirectory(toolPath);
 
       core.debug(`export TOOLCHAINS environment variable: ${TOOLCHAINS}`);
-
-      message = (
-        await exec.getExecOutput('xcrun', [
-          '--toolchain',
-          `${TOOLCHAINS}`,
-          '--run',
-          'swift',
-          '--version'
-        ])
-      ).stdout;
-
       core.exportVariable('TOOLCHAINS', TOOLCHAINS);
       core.setOutput('TOOLCHAINS', TOOLCHAINS);
+
+      message = (await exec.getExecOutput('xcrun', ['swift', '--version']))
+        .stdout;
       break;
     case 'ubuntu':
     case 'centos':
     case 'amazonlinux':
-      message = (
-        await exec.getExecOutput(path.join(toolPath, '/usr/bin/swift'), [
-          '--version'
-        ])
-      ).stdout;
+      const commandLine = path.join(toolPath, '/usr/bin/swift');
+      message = (await exec.getExecOutput(commandLine, ['--version'])).stdout;
       break;
     default:
       throw new Error(
