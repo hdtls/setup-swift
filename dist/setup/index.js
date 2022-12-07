@@ -6591,10 +6591,13 @@ const utils = __importStar(__nccwpck_require__(1314));
 const re = __importStar(__nccwpck_require__(1075));
 function find(manifest) {
     return __awaiter(this, void 0, void 0, function* () {
-        let toolPath = '';
+        let toolPath = tc.find('swift', manifest.version);
+        if (toolPath) {
+            return toolPath;
+        }
         // Find Default Xocde toolchain if swift version equals to requested
         // we should avoid install action just return Xcode default toolchain as toolPath.
-        if ((process.platform == 'darwin', re.SWIFT_RELEASE.test(manifest.version))) {
+        if (process.platform == 'darwin' && re.SWIFT_RELEASE.test(manifest.version)) {
             const commandLine = path_1.default.join(toolchains.getXcodeDefaultToolchain(), '/usr/bin/swift');
             if (fs.existsSync(commandLine)) {
                 const { stdout } = yield exec.getExecOutput(commandLine, ['--version']);
@@ -6603,10 +6606,6 @@ function find(manifest) {
                     return toolchains.getXcodeDefaultToolchain();
                 }
             }
-        }
-        toolPath = tc.find('swift', manifest.version);
-        if (toolPath) {
-            return toolPath;
         }
         core.info(`Version ${manifest.version} was not found in the local cache`);
         return '';

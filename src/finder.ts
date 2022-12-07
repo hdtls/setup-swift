@@ -8,11 +8,15 @@ import * as utils from './utils';
 import * as re from './re';
 
 export async function find(manifest: tc.IToolRelease) {
-  let toolPath = '';
+  let toolPath = tc.find('swift', manifest.version);
+
+  if (toolPath) {
+    return toolPath;
+  }
 
   // Find Default Xocde toolchain if swift version equals to requested
   // we should avoid install action just return Xcode default toolchain as toolPath.
-  if ((process.platform == 'darwin', re.SWIFT_RELEASE.test(manifest.version))) {
+  if (process.platform == 'darwin' && re.SWIFT_RELEASE.test(manifest.version)) {
     const commandLine = path.join(
       toolchains.getXcodeDefaultToolchain(),
       '/usr/bin/swift'
@@ -26,12 +30,6 @@ export async function find(manifest: tc.IToolRelease) {
         return toolchains.getXcodeDefaultToolchain();
       }
     }
-  }
-
-  toolPath = tc.find('swift', manifest.version);
-
-  if (toolPath) {
-    return toolPath;
   }
 
   core.info(`Version ${manifest.version} was not found in the local cache`);
