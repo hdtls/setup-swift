@@ -1,4 +1,5 @@
 import fs from 'fs';
+import * as re from './re';
 
 export function getVersion(message: string) {
   const re = /.*Swift version (\d+\.\d+(\.\d+)?(-dev)?).*/is;
@@ -82,14 +83,11 @@ export function getLinuxDistribID() {
 
 export function getCacheVersion(versionSpec: string) {
   let version = '';
-  if (/^swift-\d+.\d+(.\d+)?-RELEASE/.test(versionSpec)) {
-    version = versionSpec.replace(/^swift-(\d+.\d+(.\d+)?)-RELEASE/, '$1');
-  } else if (/^swift-\d+.\d+-DEVELOPMENT-.+/.test(versionSpec)) {
+  if (re.SWIFT_RELEASE.test(versionSpec)) {
+    version = versionSpec.replace(re.SWIFT_RELEASE, '$1');
+  } else if (re.SWIFT_NIGHTLY.test(versionSpec)) {
     version = 'nightly/';
-    version += versionSpec.replace(
-      /^swift-(\d+.\d+(.\d+)?)-DEVELOPMENT-.+/,
-      '$1'
-    );
+    version += versionSpec.replace(re.SWIFT_NIGHTLY, '$2');
   } else {
     version = 'nightly/main';
   }

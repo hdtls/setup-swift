@@ -1,6 +1,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import * as re from './re';
 
 export function parseBundleIDFromDirectory(at: string): string {
   let pl = path.join(at, 'Info.plist');
@@ -14,11 +15,7 @@ export function parseBundleIDFromDirectory(at: string): string {
   }
 
   return (
-    fs
-      .readFileSync(pl, 'utf8')
-      .match(
-        /(CFBundle)?Identifier<\/key>\n*\t*<string>(?<TOOLCHAINS>.*)<\/string>/
-      )?.groups?.TOOLCHAINS || ''
+    fs.readFileSync(pl, 'utf8').match(re.TOOLCHAINS)?.groups?.TOOLCHAINS || ''
   );
 }
 

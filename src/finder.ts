@@ -5,21 +5,24 @@ import * as fs from 'fs';
 import * as tc from './tool-cache';
 import * as toolchains from './toolchains';
 import * as utils from './utils';
+import * as re from './re';
 
 export async function find(manifest: tc.IToolRelease) {
-  let re = /^swift-(\d+\.\d+(\.\d+)?)-RELEASE$/;
   let toolPath = '';
 
   // Find Default Xocde toolchain if swift version equals to requested
   // we should avoid install action just return Xcode default toolchain as toolPath.
-  if ((process.platform == 'darwin', re.test(manifest.version))) {
+  if ((process.platform == 'darwin', re.SWIFT_RELEASE.test(manifest.version))) {
     const commandLine = path.join(
       toolchains.getXcodeDefaultToolchain(),
       '/usr/bin/swift'
     );
     if (fs.existsSync(commandLine)) {
       const { stdout } = await exec.getExecOutput(commandLine, ['--version']);
-      if (utils.getVersion(stdout) == manifest.version.replace(re, '$1')) {
+      if (
+        utils.getVersion(stdout) ==
+        manifest.version.replace(re.SWIFT_RELEASE, '$1')
+      ) {
         return toolchains.getXcodeDefaultToolchain();
       }
     }
