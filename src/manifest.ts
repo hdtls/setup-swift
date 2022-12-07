@@ -15,7 +15,7 @@ export async function resolve(
     SWIFT_VERSION = `swift-${versionSpec}-RELEASE`;
   } else if (
     /^swift-DEVELOPMENT-.+-a$/.test(versionSpec) ||
-    /^nightly-main$/.test(versionSpec)
+    /^nightly(-main)?$/.test(versionSpec)
   ) {
     SWIFT_BRANCH = 'development';
   } else if (/^swift-\d+\.\d+(\.\d+)?-RELEASE$/.test(versionSpec)) {
