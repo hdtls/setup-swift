@@ -6768,18 +6768,20 @@ function exportVariables(manifest, toolPath) {
         let message = '';
         switch (manifest.files[0].platform) {
             case 'darwin':
-                if (!fs_1.default.existsSync(toolchains.getToolchainsDirectory())) {
-                    yield io.mkdirP(toolchains.getToolchainsDirectory());
+                if (toolPath != toolchains.getXcodeDefaultToolchain()) {
+                    if (!fs_1.default.existsSync(toolchains.getToolchainsDirectory())) {
+                        yield io.mkdirP(toolchains.getToolchainsDirectory());
+                    }
+                    const xctoolchain = path_1.default.join(toolchains.getToolchain(manifest.version));
+                    if (fs_1.default.existsSync(xctoolchain)) {
+                        yield io.rmRF(xctoolchain);
+                    }
+                    if (fs_1.default.existsSync(toolchains.getToolchain('swift-latest'))) {
+                        yield io.rmRF(toolchains.getToolchain('swift-latest'));
+                    }
+                    // Xcode only recognize toolchains that located in Library/Developer/Toolchains
+                    fs_1.default.symlinkSync(toolPath, xctoolchain);
                 }
-                const xctoolchain = path_1.default.join(toolchains.getToolchain(manifest.version));
-                if (fs_1.default.existsSync(xctoolchain)) {
-                    yield io.rmRF(xctoolchain);
-                }
-                if (fs_1.default.existsSync(toolchains.getToolchain('swift-latest'))) {
-                    yield io.rmRF(toolchains.getToolchain('swift-latest'));
-                }
-                // Xcode only recognize toolchains that located in Library/Developer/Toolchains
-                fs_1.default.symlinkSync(toolPath, xctoolchain);
                 const TOOLCHAINS = toolchains.parseBundleIDFromDirectory(toolPath);
                 core.debug(`export TOOLCHAINS environment variable: ${TOOLCHAINS}`);
                 message = (yield exec.getExecOutput('xcrun', [
