@@ -29,12 +29,6 @@ jobs:
       - name: Verify swift --version and xcrun swift --version
         run: __tests__/verify-swift.sh "${{ matrix.swift-version }}"
         shell: bash
-      - uses: ./
-        with: 
-          swift-version: "5.7"
-      - name: Verify swift --version and xcrun swift --version
-        run: __tests__/verify-swift.sh "5.7.1"
-        shell: bash
 
   mainline-development-snapshots:
     name: setup mainline development snapshots

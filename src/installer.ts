@@ -59,21 +59,25 @@ export async function exportVariables(
 
   switch (manifest.files[0].platform) {
     case 'darwin':
-      if (!fs.existsSync(toolchains.getToolchainsDirectory())) {
-        await io.mkdirP(toolchains.getToolchainsDirectory());
-      }
+      if (toolPath != toolchains.getXcodeDefaultToolchain()) {
+        if (!fs.existsSync(toolchains.getToolchainsDirectory())) {
+          await io.mkdirP(toolchains.getToolchainsDirectory());
+        }
 
-      const xctoolchain = path.join(toolchains.getToolchain(manifest.version));
-      if (fs.existsSync(xctoolchain)) {
-        await io.rmRF(xctoolchain);
-      }
+        const xctoolchain = path.join(
+          toolchains.getToolchain(manifest.version)
+        );
+        if (fs.existsSync(xctoolchain)) {
+          await io.rmRF(xctoolchain);
+        }
 
-      if (fs.existsSync(toolchains.getToolchain('swift-latest'))) {
-        await io.rmRF(toolchains.getToolchain('swift-latest'));
-      }
+        if (fs.existsSync(toolchains.getToolchain('swift-latest'))) {
+          await io.rmRF(toolchains.getToolchain('swift-latest'));
+        }
 
-      // Xcode only recognize toolchains that located in Library/Developer/Toolchains
-      fs.symlinkSync(toolPath, xctoolchain);
+        // Xcode only recognize toolchains that located in Library/Developer/Toolchains
+        fs.symlinkSync(toolPath, xctoolchain);
+      }
 
       const TOOLCHAINS = toolchains.parseBundleIDFromDirectory(toolPath);
 
