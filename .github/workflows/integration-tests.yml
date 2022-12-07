@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest]
-        swift-version: ["swift-5.7.1-RELEASE", "5.7.1"]
+        swift-version: ["swift-5.7.1-RELEASE"]
     steps:
       - uses: actions/checkout@v3
       - name: Setup Swift ${{ matrix.swift-version }}
@@ -28,6 +28,12 @@ jobs:
           swift-version: ${{ matrix.swift-version }}
       - name: Verify swift --version and xcrun swift --version
         run: __tests__/verify-swift.sh "${{ matrix.swift-version }}"
+        shell: bash
+      - uses: ./
+        with: 
+          swift-version: "5.7"
+      - name: Verify swift --version and xcrun swift --version
+        run: __tests__/verify-swift.sh "5.7.1"
         shell: bash
 
   mainline-development-snapshots:
@@ -58,7 +64,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest]
-        swift-version: ["swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a"]
+        swift-version: ["nightly-5.7", "swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a"]
     steps:
     - uses: actions/checkout@v3
     - name: Setup Swift ${{ matrix.swift-version }}

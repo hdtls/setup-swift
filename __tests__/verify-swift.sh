@@ -13,7 +13,7 @@ parse_expect_version() {
   
   # The version number of DEVELOPMENT-SNAPSHOT is ambiguous
   # there if not contains PATCH number we will use a RegEx test instead.
-  elif [[ "$1" =~ ^swift-([0-9])+\.([0-9])+(\.([0-9])+)?-DEVELOPMENT-SNAPSHOT ]]; then
+  elif [[ "$1" =~ ^swift-([0-9])+\.([0-9])+(\.([0-9])+)?-DEVELOPMENT-SNAPSHOT ]] || [[ "$1" =~ ^nightly-([0-9])+\.([0-9])+(\.([0-9])+)? ]]; then
     local MAJOR="${BASH_REMATCH[1]}"
     local MINOR="${BASH_REMATCH[2]}"
     local PATCH="${BASH_REMATCH[4]}"
