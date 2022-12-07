@@ -7096,33 +7096,54 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.find = exports.extractXar = exports.extractTar = exports.downloadTool = exports.cacheDir = void 0;
+exports.cacheDir = exports.find = exports.extractXar = exports.extractTar = exports.downloadTool = void 0;
 const core = __importStar(__nccwpck_require__(2186));
-const fs = __importStar(__nccwpck_require__(7147));
+const tc = __importStar(__nccwpck_require__(7784));
 const assert_1 = __importDefault(__nccwpck_require__(9491));
+const fs = __importStar(__nccwpck_require__(7147));
 const path_1 = __importDefault(__nccwpck_require__(1017));
+const utils_1 = __nccwpck_require__(1314);
 var tool_cache_1 = __nccwpck_require__(7784);
-Object.defineProperty(exports, "cacheDir", ({ enumerable: true, get: function () { return tool_cache_1.cacheDir; } }));
 Object.defineProperty(exports, "downloadTool", ({ enumerable: true, get: function () { return tool_cache_1.downloadTool; } }));
 Object.defineProperty(exports, "extractTar", ({ enumerable: true, get: function () { return tool_cache_1.extractTar; } }));
 Object.defineProperty(exports, "extractXar", ({ enumerable: true, get: function () { return tool_cache_1.extractXar; } }));
 function find(toolName, versionSpec, arch) {
-    if (!toolName) {
-        throw new Error('toolName parameter is required');
+    const version = (0, utils_1.getCacheVersion)(versionSpec);
+    if (/^\d+.\d+(.\d+)?$/.test(version)) {
+        return tc.find(toolName, version, arch);
     }
-    if (!versionSpec) {
-        throw new Error('versionSpec parameter is required');
-    }
+    //
+    // Find cache for nightly versions
+    //
     arch = arch || process.arch;
     let toolPath = '';
-    const cachePath = path_1.default.join(_getCacheDirectory(), toolName, versionSpec, arch);
+    const cachePath = path_1.default.join(_getCacheDirectory(), toolName, version, arch);
     core.debug(`checking cache: ${cachePath}`);
-    if (fs.existsSync(cachePath) && fs.existsSync(`${cachePath}.complete`)) {
-        core.debug(`Found tool in cache ${toolName} ${versionSpec} ${arch}`);
+    // If exists version is newer than required version return cached tool path otherwise return ''
+    if (!fs.existsSync(path_1.default.join(cachePath, 'latest-build.yml')) ||
+        !fs.existsSync(`${cachePath}.complete`)) {
+        core.debug('not found');
+        return toolPath;
+    }
+    const latest = fs
+        .readFileSync(path_1.default.join(cachePath, 'latest-build.yml'))
+        .toString()
+        .replace(/^dir: (.*)/, '$1');
+    if (latest >= versionSpec) {
+        core.debug(`Found tool in cache ${toolName} ${latest} ${arch}`);
         toolPath = cachePath;
     }
     else {
@@ -7131,6 +7152,24 @@ function find(toolName, versionSpec, arch) {
     return toolPath;
 }
 exports.find = find;
+function cacheDir(sourceDir, tool, versionSpec, arch) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let version = (0, utils_1.getCacheVersion)(versionSpec);
+        if (/^\d+.\d+(.\d+)?$/.test(version)) {
+            if (/^\d+.\d+$/.test(version)) {
+                version = version + '.0';
+            }
+            return yield tc.cacheDir(sourceDir, tool, version, arch);
+        }
+        //
+        // Cache nightly versions
+        //
+        const toolPath = yield tc.cacheDir(sourceDir, tool, version, arch);
+        fs.writeFileSync(path_1.default.join(toolPath, 'latest-build.yml'), `dir: ${versionSpec}`);
+        return toolPath;
+    });
+}
+exports.cacheDir = cacheDir;
 /**
  * Gets RUNNER_TOOL_CACHE
  */
