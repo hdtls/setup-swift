@@ -30,27 +30,6 @@ jobs:
         run: __tests__/verify-swift.sh "${{ matrix.swift-version }}"
         shell: bash
 
-  mainline-development-snapshots:
-    name: setup mainline development snapshots
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, ubuntu-latest]
-        # Because we don't know the version number corresponding to the "swift-version", 
-        # so we hardcode the matching version for test.
-        # If you want to update this version you should also change expect version for test run.
-        swift-version: ["swift-DEVELOPMENT-SNAPSHOT-2022-11-11-a"]
-    steps:
-    - uses: actions/checkout@v3
-    - name: Setup Swift ${{ matrix.swift-version }}
-      uses: ./
-      with:
-        swift-version: ${{ matrix.swift-version }}
-    - name: Verify swift --version and xcrun swift --version
-      run: __tests__/verify-swift.sh "5.8-dev"
-      shell: bash
-
   development-snapshots:
     name: setup development snapshots
     runs-on: ${{ matrix.os }}
