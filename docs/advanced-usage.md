@@ -20,7 +20,7 @@ steps:
 - uses: actions/checkout@v3
 - uses: hdtls/setup-swift@main
   with:
-    swift-version: '3.7.5' 
+    swift-version: '5.7.1' 
 - run: swift --version
 ```
 
@@ -45,7 +45,7 @@ steps:
     swift-version: 'nightly'
 - run: swift --version
 ```
-- The `nightly` and `swift-DEVELOPMENT-SNAPSHOT-xxxx-xx-xx-a` will resolve to latest build of trunk development (main) that created from mainline development branches.
+- The `nightly`, `nightly-main` and `swift-DEVELOPMENT-SNAPSHOT-xxxx-xx-xx-a` will resolve to latest build of trunk development (main) that created from mainline development branches.
 - The `nightly-x.y` and `swift-x.y-DEVELOPMENT-SNAPSHOT-xxxx-xx-xx-a` will be resolve to latest build of `x.y` development that created from `release/x.y` branch.
 
 
