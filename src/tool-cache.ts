@@ -8,8 +8,10 @@ import { getCacheVersion } from './utils';
 
 export {
   downloadTool,
+  evaluateVersions,
   extractTar,
   extractXar,
+  isExplicitVersion,
   IToolRelease
 } from '@actions/tool-cache';
 
