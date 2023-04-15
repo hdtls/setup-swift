@@ -1,18 +1,18 @@
 /**
  * Semantic version RegExp
  */
-export const SWIFT_SEMANTIC_VERSION = /^\d+.\d+(.\d+)?$/;
+export const SWIFT_SEMANTIC_VERSION = /^\d+(\.\d+)?(\.\d+)?$/;
 
 /**
  * Swift release RegExp
  */
-export const SWIFT_RELEASE = /^swift-(\d+.\d+(.\d+)?)-RELEASE$/;
+export const SWIFT_RELEASE = /^swift-(\d+\.\d+(\.\d+)?)-RELEASE$/;
 
 /**
  * Swift nightly(development snapshot) RegExp
  */
 export const SWIFT_NIGHTLY =
-  /^(swift|nightly)-(\d+.\d+)(-DEVELOPMENT-SNAPSHOT-.+-a)?$/;
+  /^(swift|nightly)-(\d+\.\d+)(-DEVELOPMENT-SNAPSHOT-.+-a)?$/;
 
 /**
  * Swift nightly(mainline development snapshot) RegExp

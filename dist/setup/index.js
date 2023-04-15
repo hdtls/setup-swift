@@ -7038,15 +7038,15 @@ exports.TOOLCHAINS = exports.SWIFT_MAINLINE_NIGHTLY = exports.SWIFT_NIGHTLY = ex
 /**
  * Semantic version RegExp
  */
-exports.SWIFT_SEMANTIC_VERSION = /^\d+.\d+(.\d+)?$/;
+exports.SWIFT_SEMANTIC_VERSION = /^\d+(\.\d+)?(\.\d+)?$/;
 /**
  * Swift release RegExp
  */
-exports.SWIFT_RELEASE = /^swift-(\d+.\d+(.\d+)?)-RELEASE$/;
+exports.SWIFT_RELEASE = /^swift-(\d+\.\d+(\.\d+)?)-RELEASE$/;
 /**
  * Swift nightly(development snapshot) RegExp
  */
-exports.SWIFT_NIGHTLY = /^(swift|nightly)-(\d+.\d+)(-DEVELOPMENT-SNAPSHOT-.+-a)?$/;
+exports.SWIFT_NIGHTLY = /^(swift|nightly)-(\d+\.\d+)(-DEVELOPMENT-SNAPSHOT-.+-a)?$/;
 /**
  * Swift nightly(mainline development snapshot) RegExp
  */
