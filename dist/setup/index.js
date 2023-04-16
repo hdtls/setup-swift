@@ -9746,53 +9746,95 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.find = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const exec = __importStar(__nccwpck_require__(1514));
-const path_1 = __importDefault(__nccwpck_require__(1017));
-const fs = __importStar(__nccwpck_require__(7147));
+const io = __importStar(__nccwpck_require__(7436));
+const ioUtil = __importStar(__nccwpck_require__(1962));
+const os = __importStar(__nccwpck_require__(2037));
 const tc = __importStar(__nccwpck_require__(9456));
-const toolchains = __importStar(__nccwpck_require__(9322));
 const utils = __importStar(__nccwpck_require__(1314));
 const re = __importStar(__nccwpck_require__(1075));
-function find(manifest) {
+const toolchains = __importStar(__nccwpck_require__(9322));
+const path_1 = __importDefault(__nccwpck_require__(1017));
+function find(manifest, arch = os.arch()) {
     return __awaiter(this, void 0, void 0, function* () {
-        let toolPath = tc.find('swift', manifest.version);
-        if (toolPath) {
-            return toolPath;
-        }
-        // If required version is nightly version just return not found.
+        // Do NOT evaluate unstable version swift tool finding.
         if (re.SWIFT_NIGHTLY.test(manifest.version) ||
             re.SWIFT_MAINLINE_NIGHTLY.test(manifest.version)) {
             core.info(`Version ${manifest.version} was not found in the local cache`);
             return '';
         }
-        let commandLine = '';
+        let toolPaths = [];
+        let toolPath = '';
         switch (manifest.files[0].platform) {
             case 'darwin':
-                // Find Default Xocde toolchain if swift version equals to requested
-                // we should avoid install action and return Xcode default toolchain as toolPath.
-                commandLine = path_1.default.join(toolchains.getXcodeDefaultToolchain(), '/usr/bin/swift');
-                toolPath = toolchains.getXcodeDefaultToolchain();
+                /**
+                 * Find toolchains located in:
+                 *   /Library/Developer/Toolchains
+                 *   /Users/runner/Library/Developer/Toolchains
+                 *   /Applications/Xcode.app/Contents/Developer/Toolchains
+                 */
+                try {
+                    try {
+                        toolPaths = (yield ioUtil.readdir('/Library/Developer/Toolchains'))
+                            .filter(toolPath => toolPath.endsWith('.xctoolchain'))
+                            .concat(toolPaths);
+                    }
+                    catch (error) { }
+                    try {
+                        toolPaths = (yield ioUtil.readdir(toolchains.getToolchainsDirectory()))
+                            .filter(toolPath => toolPath.endsWith('.xctoolchain'))
+                            .concat(toolPaths);
+                    }
+                    catch (error) { }
+                    toolPaths.push(toolchains.getXcodeDefaultToolchain());
+                    toolPaths = toolPaths
+                        .filter((toolPath) => __awaiter(this, void 0, void 0, function* () {
+                        try {
+                            const stats = yield ioUtil.lstat(toolPath);
+                            const commandLine = path_1.default.join(toolPath, '/usr/bin/swift');
+                            const exsits = yield ioUtil.exists(commandLine);
+                            return !stats.isSymbolicLink() && exsits;
+                        }
+                        catch (error) {
+                            return false;
+                        }
+                    }))
+                        .map(toolPath => path_1.default.join(toolPath, '/usr/bin'));
+                }
+                catch (error) { }
                 break;
             case 'ubuntu':
-                commandLine = '/usr/bin/swift';
-                toolPath = '/';
-                break;
             case 'centos':
             case 'amazonlinux':
-                commandLine = '/usr/lib/swift';
-                toolPath = '/';
+                try {
+                    toolPaths = (yield io.findInPath('swift')).map(commandLine => {
+                        return commandLine.split('/').slice(0, -1).join('/');
+                    });
+                }
+                catch (error) { }
                 break;
             default:
                 break;
         }
-        if (fs.existsSync(commandLine)) {
-            const { stdout } = yield exec.getExecOutput(commandLine, ['--version']);
+        // Check default installed...
+        for (const toolPath of toolPaths) {
+            core.debug(`Checking installed tool in ${toolPath}`);
+            const commandLine = path_1.default.join(toolPath, 'swift');
+            const options = { silent: true };
+            const { stdout } = yield exec.getExecOutput(commandLine, ['--version'], options);
             if (utils.getVersion(stdout) ==
                 manifest.version.replace(re.SWIFT_RELEASE, '$1')) {
+                core.debug(`Found tool in ${toolPath} ${manifest.version} ${arch}`);
                 return toolPath;
             }
+            core.debug('Not found');
         }
-        core.info(`Version ${manifest.version} was not found in the local cache`);
-        return '';
+        // Check setup-swift action installed...
+        toolPath = tc.find('swift', manifest.version, arch);
+        if (!toolPath) {
+            core.info(`Version ${manifest.version} was not found in the local cache`);
+            return '';
+        }
+        return path_1.default.join(toolPath, '/usr/bin');
     });
 }
 exports.find = find;
@@ -9908,8 +9950,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.exportVariables = exports.install = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const io = __importStar(__nccwpck_require__(7436));
+const ioUtil = __importStar(__nccwpck_require__(1962));
 const exec = __importStar(__nccwpck_require__(1514));
-const fs_1 = __importDefault(__nccwpck_require__(7147));
 const path_1 = __importDefault(__nccwpck_require__(1017));
 const gpg = __importStar(__nccwpck_require__(3759));
 const tc = __importStar(__nccwpck_require__(9456));
@@ -9949,47 +9991,55 @@ function install(manifest) {
 exports.install = install;
 function exportVariables(manifest, toolPath) {
     return __awaiter(this, void 0, void 0, function* () {
-        let message = '';
+        let commandLine = '';
+        let args;
         switch (manifest.files[0].platform) {
             case 'darwin':
-                /**
-                 * Xcode find toolchains located in:
-                 *   /Library/Developer/Toolchains
-                 *   /Users/runner/Library/Developer/Toolchains
-                 *   /Applications/Xcode.app/Contents/Developer/Toolchains
-                 */
-                if (toolPath != toolchains.getXcodeDefaultToolchain()) {
-                    if (!fs_1.default.existsSync(toolchains.getToolchainsDirectory())) {
+                // Remove /usr/bin
+                toolPath = toolPath.split('/').slice(0, -2).join('/');
+                // Toolchains located in:
+                //   /Library/Developer/Toolchains
+                //   /Users/runner/Library/Developer/Toolchains
+                //   /Applications/Xcode.app/Contents/Developer/Toolchains
+                // are not maintained by setup-swift.
+                if (!toolPath.startsWith(toolchains.getXcodeDefaultToolchain()) &&
+                    !toolPath.startsWith('/Library/Developer/Toolchains') &&
+                    !toolPath.startsWith(toolchains.getToolchainsDirectory())) {
+                    if (!(yield ioUtil.exists(toolchains.getToolchainsDirectory()))) {
                         yield io.mkdirP(toolchains.getToolchainsDirectory());
                     }
-                    const xctoolchain = path_1.default.join(toolchains.getToolchain(manifest.version));
-                    if (fs_1.default.existsSync(xctoolchain)) {
-                        yield io.rmRF(xctoolchain);
+                    const toolchain = toolchains.getToolchain(manifest.version);
+                    if (yield ioUtil.exists(toolchain)) {
+                        yield io.rmRF(toolchain);
                     }
-                    if (fs_1.default.existsSync(toolchains.getToolchain('swift-latest'))) {
+                    // Remove swift-latest.xctoolchain
+                    if (yield ioUtil.exists(toolchains.getToolchain('swift-latest'))) {
                         yield io.rmRF(toolchains.getToolchain('swift-latest'));
                     }
-                    fs_1.default.symlinkSync(toolPath, xctoolchain);
+                    yield ioUtil.symlink(toolPath, toolchain);
                 }
                 const TOOLCHAINS = toolchains.parseBundleIDFromDirectory(toolPath);
                 core.debug(`export TOOLCHAINS environment variable: ${TOOLCHAINS}`);
                 core.exportVariable('TOOLCHAINS', TOOLCHAINS);
                 core.setOutput('TOOLCHAINS', TOOLCHAINS);
-                message = (yield exec.getExecOutput('xcrun', ['swift', '--version']))
-                    .stdout;
+                toolPath = path_1.default.join(toolPath, '/usr/bin');
+                commandLine = 'xcrun';
+                args = ['swift', '--version'];
                 break;
             case 'ubuntu':
             case 'centos':
             case 'amazonlinux':
-                const commandLine = path_1.default.join(toolPath, '/usr/bin/swift');
-                message = (yield exec.getExecOutput(commandLine, ['--version'])).stdout;
+                commandLine = path_1.default.join(toolPath, 'swift');
+                args = ['--version'];
                 break;
             default:
                 throw new Error(`Installing Swift on ${manifest.files[0].platform} is not supported yet`);
         }
-        const swiftVersion = utils.getVersion(message);
-        core.addPath(path_1.default.join(toolPath, '/usr/bin'));
-        core.setOutput('swift-path', path_1.default.join(toolPath, '/usr/bin/swift'));
+        const options = { silent: true };
+        const { stdout } = yield exec.getExecOutput(commandLine, args, options);
+        const swiftVersion = utils.getVersion(stdout);
+        core.addPath(toolPath);
+        core.setOutput('swift-path', path_1.default.join(toolPath, 'swift'));
         core.setOutput('swift-version', swiftVersion);
         core.info(`Successfully set up Swift ${swiftVersion} (${manifest.version})`);
     });
@@ -10043,15 +10093,17 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.run = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const os_1 = __importDefault(__nccwpck_require__(2037));
-const mm = __importStar(__nccwpck_require__(1635));
 const finder = __importStar(__nccwpck_require__(6932));
+const tc = __importStar(__nccwpck_require__(9456));
 const installer = __importStar(__nccwpck_require__(2574));
+const mm = __importStar(__nccwpck_require__(1635));
 const utils = __importStar(__nccwpck_require__(1314));
+const path_1 = __importDefault(__nccwpck_require__(1017));
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const versionSpec = core.getInput('swift-version', { required: true });
-            const arch = core.getInput('architecture') || process.arch;
+            const arch = core.getInput('architecture') || os_1.default.arch();
             if (versionSpec.length === 0) {
                 core.setFailed('Missing `swift-version`.');
             }
@@ -10062,10 +10114,13 @@ function run() {
                 : process.platform == 'darwin'
                     ? ''
                     : '10');
-            let toolPath = yield finder.find(manifest);
+            let toolPath = yield finder.find(manifest, arch);
             if (!toolPath) {
                 yield installer.install(manifest);
-                toolPath = yield finder.find(manifest);
+                toolPath = tc.find('swift', manifest.version, arch);
+                if (toolPath.length) {
+                    toolPath = path_1.default.join(toolPath, '/usr/bin');
+                }
             }
             if (!toolPath) {
                 throw new Error([

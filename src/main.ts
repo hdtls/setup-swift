@@ -1,14 +1,16 @@
 import * as core from '@actions/core';
 import os from 'os';
-import * as mm from './manifest';
 import * as finder from './finder';
+import * as tc from './tool-cache';
 import * as installer from './installer';
+import * as mm from './manifest';
 import * as utils from './utils';
+import path from 'path';
 
 export async function run() {
   try {
     const versionSpec = core.getInput('swift-version', { required: true });
-    const arch = core.getInput('architecture') || process.arch;
+    const arch = core.getInput('architecture') || os.arch();
 
     if (versionSpec.length === 0) {
       core.setFailed('Missing `swift-version`.');
@@ -27,11 +29,14 @@ export async function run() {
         : '10'
     );
 
-    let toolPath = await finder.find(manifest);
+    let toolPath = await finder.find(manifest, arch);
 
     if (!toolPath) {
       await installer.install(manifest);
-      toolPath = await finder.find(manifest);
+      toolPath = tc.find('swift', manifest.version, arch);
+      if (toolPath.length) {
+        toolPath = path.join(toolPath, '/usr/bin');
+      }
     }
 
     if (!toolPath) {

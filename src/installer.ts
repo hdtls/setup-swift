@@ -1,7 +1,7 @@
 import * as core from '@actions/core';
 import * as io from '@actions/io';
+import * as ioUtil from '@actions/io/lib/io-util';
 import * as exec from '@actions/exec';
-import fs from 'fs';
 import path from 'path';
 import * as gpg from './gpg';
 import * as tc from './tool-cache';
@@ -55,32 +55,39 @@ export async function exportVariables(
   manifest: tc.IToolRelease,
   toolPath: string
 ) {
-  let message = '';
+  let commandLine = '';
+  let args: string[] | undefined;
+
   switch (manifest.files[0].platform) {
     case 'darwin':
-      /**
-       * Xcode find toolchains located in:
-       *   /Library/Developer/Toolchains
-       *   /Users/runner/Library/Developer/Toolchains
-       *   /Applications/Xcode.app/Contents/Developer/Toolchains
-       */
-      if (toolPath != toolchains.getXcodeDefaultToolchain()) {
-        if (!fs.existsSync(toolchains.getToolchainsDirectory())) {
+      // Remove /usr/bin
+      toolPath = toolPath.split('/').slice(0, -2).join('/');
+
+      // Toolchains located in:
+      //   /Library/Developer/Toolchains
+      //   /Users/runner/Library/Developer/Toolchains
+      //   /Applications/Xcode.app/Contents/Developer/Toolchains
+      // are not maintained by setup-swift.
+      if (
+        !toolPath.startsWith(toolchains.getXcodeDefaultToolchain()) &&
+        !toolPath.startsWith('/Library/Developer/Toolchains') &&
+        !toolPath.startsWith(toolchains.getToolchainsDirectory())
+      ) {
+        if (!(await ioUtil.exists(toolchains.getToolchainsDirectory()))) {
           await io.mkdirP(toolchains.getToolchainsDirectory());
         }
 
-        const xctoolchain = path.join(
-          toolchains.getToolchain(manifest.version)
-        );
-        if (fs.existsSync(xctoolchain)) {
-          await io.rmRF(xctoolchain);
+        const toolchain = toolchains.getToolchain(manifest.version);
+        if (await ioUtil.exists(toolchain)) {
+          await io.rmRF(toolchain);
         }
 
-        if (fs.existsSync(toolchains.getToolchain('swift-latest'))) {
+        // Remove swift-latest.xctoolchain
+        if (await ioUtil.exists(toolchains.getToolchain('swift-latest'))) {
           await io.rmRF(toolchains.getToolchain('swift-latest'));
         }
 
-        fs.symlinkSync(toolPath, xctoolchain);
+        await ioUtil.symlink(toolPath, toolchain);
       }
 
       const TOOLCHAINS = toolchains.parseBundleIDFromDirectory(toolPath);
@@ -89,14 +96,15 @@ export async function exportVariables(
       core.exportVariable('TOOLCHAINS', TOOLCHAINS);
       core.setOutput('TOOLCHAINS', TOOLCHAINS);
 
-      message = (await exec.getExecOutput('xcrun', ['swift', '--version']))
-        .stdout;
+      toolPath = path.join(toolPath, '/usr/bin');
+      commandLine = 'xcrun';
+      args = ['swift', '--version'];
       break;
     case 'ubuntu':
     case 'centos':
     case 'amazonlinux':
-      const commandLine = path.join(toolPath, '/usr/bin/swift');
-      message = (await exec.getExecOutput(commandLine, ['--version'])).stdout;
+      commandLine = path.join(toolPath, 'swift');
+      args = ['--version'];
       break;
     default:
       throw new Error(
@@ -104,10 +112,13 @@ export async function exportVariables(
       );
   }
 
-  const swiftVersion = utils.getVersion(message);
+  const options: exec.ExecOptions = { silent: true };
+  const { stdout } = await exec.getExecOutput(commandLine, args, options);
 
-  core.addPath(path.join(toolPath, '/usr/bin'));
-  core.setOutput('swift-path', path.join(toolPath, '/usr/bin/swift'));
+  const swiftVersion = utils.getVersion(stdout);
+
+  core.addPath(toolPath);
+  core.setOutput('swift-path', path.join(toolPath, 'swift'));
   core.setOutput('swift-version', swiftVersion);
   core.info(`Successfully set up Swift ${swiftVersion} (${manifest.version})`);
 }
