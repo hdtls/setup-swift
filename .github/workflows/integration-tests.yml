@@ -12,83 +12,93 @@ on:
       - '**.md'
 
 jobs:
-  explicit:
-    name: setup explicit versions
+  integration-tests:
+    name: setup swift on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest]
-        swift-version: ["swift-5.7.1-RELEASE", "5.7.1"]
     steps:
       - uses: actions/checkout@v3
-      - name: Setup Swift ${{ matrix.swift-version }}
+
+      - name: Run setup-swift (5.7.1)
         uses: ./
         with:
-          swift-version: ${{ matrix.swift-version }}
-      - name: Verify swift --version and xcrun swift --version
-        run: __tests__/verify-swift.sh "${{ matrix.swift-version }}"
+          swift-version: 5.7.1
+      - name: Verify swift (5.7.1)
+        run: __tests__/verify-swift.sh "5.7.1"
         shell: bash
 
-  ambiguous:
-    name: setup ambiguous versions
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, ubuntu-latest]
-        swift-version: ["swift-5.7-RELEASE", "5.7"]
-    steps:
-      - uses: actions/checkout@v3
-      - name: Setup Swift ${{ matrix.swift-version }}
+      - name: Run setup-swift (swift-5.7.1-RELEASE)
         uses: ./
         with:
-          swift-version: ${{ matrix.swift-version }}
-      - name: Verify swift --version and xcrun swift --version
-        run: __tests__/verify-swift.sh "5.7.3"
+          swift-version: swift-5.7.1-RELEASE
+      - name: Verify swift (swift-5.7.1-RELEASE)
+        run: __tests__/verify-swift.sh "swift-5.7.1-RELEASE"
         shell: bash
-      
-      - name: Setup Swift 5
+
+      - name: Run setup-swift (5.7)
         uses: ./
         with:
-          swift-version: "5"
-      - name: Verify swift --version and xcrun swift --version
+          swift-version: 5.7
+      - name: Verify swift (5.7)
+        run: __tests__/verify-swift.sh "5.7"
+        shell: bash
+
+      - name: Run setup-swift (swift-5.7-RELEASE)
+        uses: ./
+        with:
+          swift-version: swift-5.7-RELEASE
+      - name: Verify swift (swift-5.7-RELEASE)
+        run: __tests__/verify-swift.sh "swift-5.7-RELEASE"
+        shell: bash
+
+      - name: Run setup-swift (5)
+        uses: ./
+        with:
+          swift-version: 5
+      - name: Verify swift (5)
         # Need update if available swift versions (SWIFT_VERSIONS) changed.
         run: __tests__/verify-swift.sh "5.8"
         shell: bash
+      
+      - name: Run setup-swift (nightly-5.7)
+        uses: ./
+        with:
+          swift-version: nightly-5.7
+      - name: Verify swift (nightly-5.7)
+        run: __tests__/verify-swift.sh "nightly-5.7"
+        shell: bash
 
-  nightly:
-    name: setup nightly versions
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, ubuntu-latest]
-        swift-version: ["nightly-5.7", "swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a"]
-    steps:
-    - uses: actions/checkout@v3
-    - name: Setup Swift ${{ matrix.swift-version }}
-      uses: ./
-      with:
-        swift-version: ${{ matrix.swift-version }}
-    - name: Verify swift --version and xcrun swift --version if possible
-      run: __tests__/verify-swift.sh "${{ matrix.swift-version }}"
-      shell: bash
+      - name: Run setup-swift (swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a)
+        uses: ./
+        with:
+          swift-version: swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a
+      - name: Verify swift (swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a)
+        run: __tests__/verify-swift.sh "swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a"
+        shell: bash
 
-  # mainline-nightly:
-  #   name: setup mainline nightly versions
-  #   runs-on: ${{ matrix.os }}
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       os: [macos-latest, ubuntu-latest]
-  #       swift-version: ["nightly-main", "nightly", "swift-DEVELOPMENT-SNAPSHOT-2023-04-11-a"]
-  #   steps:
-  #   - uses: actions/checkout@v3
-  #   - name: Setup Swift ${{ matrix.swift-version }}
-  #     uses: ./
-  #     with:
-  #       swift-version: ${{ matrix.swift-version }}
-  #   - name: Verify swift --version and xcrun swift --version if possible
-  #     run: __tests__/verify-swift.sh "${{ matrix.swift-version }}"
-  #     shell: bash
+      - name: Run setup-swift (nightly)
+        uses: ./
+        with:
+          swift-version: nightly
+      - name: Verify swift (nightly)
+        run: __tests__/verify-swift.sh "^[0-9]+\.[0-9]+(\.[0-9]+)?-dev$" 
+        shell: bash
+
+      - name: Run setup-swift (nightly-main)
+        uses: ./
+        with:
+          swift-version: nightly-main
+      - name: Verify swift (nightly-main)
+        run: __tests__/verify-swift.sh "^[0-9]+\.[0-9]+(\.[0-9]+)?-dev$" 
+        shell: bash
+
+      - name: Run setup-swift (swift-DEVELOPMENT-SNAPSHOT-2023-04-11-a)
+        uses: ./
+        with:
+          swift-version: swift-DEVELOPMENT-SNAPSHOT-2023-04-11-a
+      - name: Verify swift (swift-DEVELOPMENT-SNAPSHOT-2023-04-11-a)
+        run: __tests__/verify-swift.sh "^[0-9]+\.[0-9]+(\.[0-9]+)?-dev$" 
+        shell: bash

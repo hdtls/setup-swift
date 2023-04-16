@@ -24,7 +24,7 @@ parse_expect_version() {
     expected="$MAJOR.$MINOR(\.[0-9]+)?-dev"
     fi
   else
-    exit 1
+    expected="$1"
   fi
 }
 
