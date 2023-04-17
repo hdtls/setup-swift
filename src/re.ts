@@ -20,7 +20,7 @@ createToken(
   'MAINVERSION',
   `(${src[t.NUMERICIDENTIFIER]})\\.` +
     `(${src[t.NUMERICIDENTIFIER]})` +
-    `(\\.(${src[t.NUMERICIDENTIFIER]}))?`
+    `(?:\\.(${src[t.NUMERICIDENTIFIER]}))?`
 );
 
 // ## TOOLCHAIN
@@ -56,4 +56,20 @@ createToken(
   `(?:^swift${src[t.DEVELOPMENTSNAPSHOT]}$|^nightly(?:-main)?$)`
 );
 
+// Max safe segment length for coercion.
+const MAX_SAFE_COMPONENT_LENGTH = 16;
+
+createToken(
+  'COERCE',
+  `${'(^|[^\\d])' + '(\\d{1,'}${MAX_SAFE_COMPONENT_LENGTH}})` +
+    `(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?` +
+    `(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?` +
+    `(?:$|[^\\d])`
+);
+
 export { re, src, t };
+
+export function coerce(version: string) {
+  const match = version.match(re[t.COERCE]) || [];
+  return `${match[2]}.${match[3] || '0'}.${match[4] || '0'}`;
+}

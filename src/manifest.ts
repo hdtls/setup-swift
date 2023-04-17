@@ -1,7 +1,6 @@
 import * as tc from './tool-cache';
 import * as fs from 'fs';
-import * as semver from 'semver';
-import { re, src, t } from './re';
+import { re, src, t, coerce } from './re';
 
 /**
  *  Resolve tool manifest from given tag platform arch and platform version
@@ -172,4 +171,4 @@ const SWIFT_VERSIONS = [
   '5.5.2',
   '5.5.1',
   '5.5'
-].map(e => semver.coerce(e)!.version);
+].map(e => coerce(e));

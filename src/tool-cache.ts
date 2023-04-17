@@ -1,11 +1,10 @@
 import * as core from '@actions/core';
 import * as tc from '@actions/tool-cache';
-import * as semver from 'semver';
 import * as os from 'os';
 import * as fs from 'fs';
 import path from 'path';
 import assert from 'assert';
-import { re, src, t } from './re';
+import { re, src, t, coerce } from './re';
 
 export {
   downloadTool,
@@ -26,7 +25,7 @@ export {
 export function find(toolName: string, versionSpec: string, arch?: string) {
   const version = _getCacheVersion(versionSpec);
 
-  const pattern = `^(?:main|${src[t.NUMERICIDENTIFIER]}\.${
+  const pattern = `^(?:main|${src[t.NUMERICIDENTIFIER]}\\.${
     src[t.NUMERICIDENTIFIER]
   })\\+${src[t.NUMERICIDENTIFIER]}$`;
 
@@ -91,9 +90,9 @@ export function _getCacheVersion(versionSpec: string) {
   switch (true) {
     case re[t.SWIFTRELEASE].test(versionSpec):
       versionSpec = versionSpec.replace(re[t.SWIFTRELEASE], '$1');
-      return semver.coerce(versionSpec)?.version || '';
+      return coerce(versionSpec);
     case re[t.SWIFTNIGHTLY].test(versionSpec):
-      return versionSpec.replace(re[t.SWIFTNIGHTLY], '$1+$6$7$8');
+      return versionSpec.replace(re[t.SWIFTNIGHTLY], '$1+$5$6$7');
     case re[t.SWIFTMAINLINENIGHTLY].test(versionSpec):
       return versionSpec.replace(re[t.SWIFTMAINLINENIGHTLY], 'main+$1$2$3');
     default:
