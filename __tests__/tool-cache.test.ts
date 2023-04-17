@@ -25,6 +25,18 @@ describe('tool-cache', function () {
   });
 
   it.each([
+    ['swift-5.7-RELEASE', '5.7.0'],
+    ['swift-5.7.1-RELEASE', '5.7.1'],
+    ['swift-DEVELOPMENT-SNAPSHOT-2023-04-11-a', 'main+20230411'],
+    ['swift-5.9-DEVELOPMENT-SNAPSHOT-2023-04-12-a', '5.9+20230412']
+  ])(
+    'resolve version for cache tool with version %s',
+    (versionSpec, expected) => {
+      expect(tc._getCacheVersion(versionSpec)).toBe(expected);
+    }
+  );
+
+  it.each([
     'swift-5.7-RELEASE',
     'swift-5.7.1-RELEASE',
     'swift-DEVELOPMENT-SNAPSHOT-2023-04-11-a',
