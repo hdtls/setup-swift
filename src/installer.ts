@@ -1,13 +1,18 @@
 import * as core from '@actions/core';
 import * as io from '@actions/io';
-import * as ioUtil from '@actions/io/lib/io-util';
 import * as exec from '@actions/exec';
+import * as fs from 'fs';
 import * as path from 'path';
 import * as gpg from './gpg';
 import * as tc from './tool-cache';
 import * as utils from './utils';
 import * as toolchains from './toolchains';
 
+/**
+ * Download and install tools define in manifest files
+ *
+ * @param manifest informations of tool
+ */
 export async function install(manifest: tc.IToolRelease) {
   let archivePath = '';
   let extractPath = '';
@@ -51,6 +56,14 @@ export async function install(manifest: tc.IToolRelease) {
   await tc.cacheDir(extractPath, 'swift', manifest.version);
 }
 
+/**
+ * Export path or any other relative variables
+ *
+ * on macOS this also create symblink for installed toolchains
+ *
+ * @param manifest manifest for installed tool
+ * @param toolPath installed tool path
+ */
 export async function exportVariables(
   manifest: tc.IToolRelease,
   toolPath: string
@@ -73,21 +86,21 @@ export async function exportVariables(
         !toolPath.startsWith('/Library/Developer/Toolchains') &&
         !toolPath.startsWith(toolchains.getToolchainsDirectory())
       ) {
-        if (!(await ioUtil.exists(toolchains.getToolchainsDirectory()))) {
+        if (!fs.existsSync(toolchains.getToolchainsDirectory())) {
           await io.mkdirP(toolchains.getToolchainsDirectory());
         }
 
         const toolchain = toolchains.getToolchain(manifest.version);
-        if (await ioUtil.exists(toolchain)) {
+        if (fs.existsSync(toolchain)) {
           await io.rmRF(toolchain);
         }
 
         // Remove swift-latest.xctoolchain
-        if (await ioUtil.exists(toolchains.getToolchain('swift-latest'))) {
+        if (fs.existsSync(toolchains.getToolchain('swift-latest'))) {
           await io.rmRF(toolchains.getToolchain('swift-latest'));
         }
 
-        await ioUtil.symlink(toolPath, toolchain);
+        fs.symlinkSync(toolPath, toolchain);
       }
 
       const TOOLCHAINS = toolchains.parseBundleIDFromDirectory(toolPath);

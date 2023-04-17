@@ -9887,6 +9887,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.verify = exports.importKeys = void 0;
 const exec = __importStar(__nccwpck_require__(1514));
 const tc = __importStar(__nccwpck_require__(7784));
+/**
+ * Import Swift gpg keys
+ */
 function importKeys() {
     return __awaiter(this, void 0, void 0, function* () {
         let keys = yield tc.downloadTool('https://swift.org/keys/all-keys.asc');
@@ -9894,6 +9897,12 @@ function importKeys() {
     });
 }
 exports.importKeys = importKeys;
+/**
+ * Verify archive with given signature
+ *
+ * @param signature tool signature
+ * @param archive   tool path
+ */
 function verify(signature, archive) {
     return __awaiter(this, void 0, void 0, function* () {
         yield exec.exec('gpg', [
@@ -9951,13 +9960,18 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.exportVariables = exports.install = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const io = __importStar(__nccwpck_require__(7436));
-const ioUtil = __importStar(__nccwpck_require__(1962));
 const exec = __importStar(__nccwpck_require__(1514));
+const fs = __importStar(__nccwpck_require__(7147));
 const path = __importStar(__nccwpck_require__(1017));
 const gpg = __importStar(__nccwpck_require__(3759));
 const tc = __importStar(__nccwpck_require__(9456));
 const utils = __importStar(__nccwpck_require__(1314));
 const toolchains = __importStar(__nccwpck_require__(9322));
+/**
+ * Download and install tools define in manifest files
+ *
+ * @param manifest informations of tool
+ */
 function install(manifest) {
     return __awaiter(this, void 0, void 0, function* () {
         let archivePath = '';
@@ -9990,6 +10004,14 @@ function install(manifest) {
     });
 }
 exports.install = install;
+/**
+ * Export path or any other relative variables
+ *
+ * on macOS this also create symblink for installed toolchains
+ *
+ * @param manifest manifest for installed tool
+ * @param toolPath installed tool path
+ */
 function exportVariables(manifest, toolPath) {
     return __awaiter(this, void 0, void 0, function* () {
         let commandLine = '';
@@ -10006,18 +10028,18 @@ function exportVariables(manifest, toolPath) {
                 if (!toolPath.startsWith(toolchains.getXcodeDefaultToolchain()) &&
                     !toolPath.startsWith('/Library/Developer/Toolchains') &&
                     !toolPath.startsWith(toolchains.getToolchainsDirectory())) {
-                    if (!(yield ioUtil.exists(toolchains.getToolchainsDirectory()))) {
+                    if (!fs.existsSync(toolchains.getToolchainsDirectory())) {
                         yield io.mkdirP(toolchains.getToolchainsDirectory());
                     }
                     const toolchain = toolchains.getToolchain(manifest.version);
-                    if (yield ioUtil.exists(toolchain)) {
+                    if (fs.existsSync(toolchain)) {
                         yield io.rmRF(toolchain);
                     }
                     // Remove swift-latest.xctoolchain
-                    if (yield ioUtil.exists(toolchains.getToolchain('swift-latest'))) {
+                    if (fs.existsSync(toolchains.getToolchain('swift-latest'))) {
                         yield io.rmRF(toolchains.getToolchain('swift-latest'));
                     }
-                    yield ioUtil.symlink(toolPath, toolchain);
+                    fs.symlinkSync(toolPath, toolchain);
                 }
                 const TOOLCHAINS = toolchains.parseBundleIDFromDirectory(toolPath);
                 core.debug(`export TOOLCHAINS environment variable: ${TOOLCHAINS}`);
@@ -10659,7 +10681,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getLinuxDistribID = exports.getLinuxDistribRelease = exports.__DISTRIB__ = exports.extractVerFromLogMessage = void 0;
 const fs = __importStar(__nccwpck_require__(7147));
 /**
- * Gets Swift version from given stdout message
+ * Extract Swift version from given stdout message
  *
  * @param message stdout message
  * @returns Swift version if success or empty
