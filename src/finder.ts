@@ -39,14 +39,20 @@ export async function find(
           try {
             toolPaths = fs
               .readdirSync('/Library/Developer/Toolchains')
-              .filter(toolPath => toolPath.endsWith('.xctoolchain'))
+              .filter(toolchain => toolchain.endsWith('.xctoolchain'))
+              .map(toolchain =>
+                path.join('/Library/Developer/Toolchains', toolchain)
+              )
               .concat(toolPaths);
           } catch (error) {}
 
           try {
             toolPaths = fs
               .readdirSync(toolchains.getToolchainsDirectory())
-              .filter(toolPath => toolPath.endsWith('.xctoolchain'))
+              .filter(toolchain => toolchain.endsWith('.xctoolchain'))
+              .map(toolchain =>
+                path.join(toolchains.getToolchainsDirectory(), toolchain)
+              )
               .concat(toolPaths);
           } catch (error) {}
 
