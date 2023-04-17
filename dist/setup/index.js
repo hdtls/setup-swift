@@ -9747,86 +9747,93 @@ exports.find = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const exec = __importStar(__nccwpck_require__(1514));
 const io = __importStar(__nccwpck_require__(7436));
-const ioUtil = __importStar(__nccwpck_require__(1962));
 const os = __importStar(__nccwpck_require__(2037));
+const fs = __importStar(__nccwpck_require__(7147));
 const tc = __importStar(__nccwpck_require__(9456));
 const utils = __importStar(__nccwpck_require__(1314));
 const re = __importStar(__nccwpck_require__(1075));
 const toolchains = __importStar(__nccwpck_require__(9322));
 const path_1 = __importDefault(__nccwpck_require__(1017));
+/**
+ * Finds the path for tool in the system-wide
+ *
+ * @param manifest  info of the tool
+ * @param arch      optional arch. defaults to arch of computer
+ * @returns         path for the founded tool. return empty if not found
+ */
 function find(manifest, arch = os.arch()) {
     return __awaiter(this, void 0, void 0, function* () {
-        // Do NOT evaluate unstable version swift tool finding.
-        if (re.SWIFT_NIGHTLY.test(manifest.version) ||
-            re.SWIFT_MAINLINE_NIGHTLY.test(manifest.version)) {
-            core.info(`Version ${manifest.version} was not found in the local cache`);
-            return '';
-        }
-        let toolPaths = [];
         let toolPath = '';
-        switch (manifest.files[0].platform) {
-            case 'darwin':
-                /**
-                 * Find toolchains located in:
-                 *   /Library/Developer/Toolchains
-                 *   /Users/runner/Library/Developer/Toolchains
-                 *   /Applications/Xcode.app/Contents/Developer/Toolchains
-                 */
-                try {
+        // System-wide lookups for nightly versions will be ignored.
+        if (re.SWIFT_RELEASE.test(manifest.version)) {
+            let toolPaths = [];
+            // Platform specified system-wide finding.
+            switch (manifest.files[0].platform) {
+                case 'darwin':
+                    /**
+                     * Find toolchains located in:
+                     *   /Library/Developer/Toolchains
+                     *   /Users/runner/Library/Developer/Toolchains
+                     *   /Applications/Xcode.app/Contents/Developer/Toolchains
+                     */
                     try {
-                        toolPaths = (yield ioUtil.readdir('/Library/Developer/Toolchains'))
-                            .filter(toolPath => toolPath.endsWith('.xctoolchain'))
-                            .concat(toolPaths);
-                    }
-                    catch (error) { }
-                    try {
-                        toolPaths = (yield ioUtil.readdir(toolchains.getToolchainsDirectory()))
-                            .filter(toolPath => toolPath.endsWith('.xctoolchain'))
-                            .concat(toolPaths);
-                    }
-                    catch (error) { }
-                    toolPaths.push(toolchains.getXcodeDefaultToolchain());
-                    toolPaths = toolPaths
-                        .filter((toolPath) => __awaiter(this, void 0, void 0, function* () {
                         try {
-                            const stats = yield ioUtil.lstat(toolPath);
-                            const commandLine = path_1.default.join(toolPath, '/usr/bin/swift');
-                            const exsits = yield ioUtil.exists(commandLine);
-                            return !stats.isSymbolicLink() && exsits;
+                            toolPaths = fs
+                                .readdirSync('/Library/Developer/Toolchains')
+                                .filter(toolPath => toolPath.endsWith('.xctoolchain'))
+                                .concat(toolPaths);
                         }
-                        catch (error) {
-                            return false;
+                        catch (error) { }
+                        try {
+                            toolPaths = fs
+                                .readdirSync(toolchains.getToolchainsDirectory())
+                                .filter(toolPath => toolPath.endsWith('.xctoolchain'))
+                                .concat(toolPaths);
                         }
-                    }))
-                        .map(toolPath => path_1.default.join(toolPath, '/usr/bin'));
-                }
-                catch (error) { }
-                break;
-            case 'ubuntu':
-            case 'centos':
-            case 'amazonlinux':
-                try {
-                    toolPaths = (yield io.findInPath('swift')).map(commandLine => {
-                        return commandLine.split('/').slice(0, -1).join('/');
-                    });
-                }
-                catch (error) { }
-                break;
-            default:
-                break;
-        }
-        // Check default installed...
-        for (const toolPath of toolPaths) {
-            core.debug(`Checking installed tool in ${toolPath}`);
-            const commandLine = path_1.default.join(toolPath, 'swift');
-            const options = { silent: true };
-            const { stdout } = yield exec.getExecOutput(commandLine, ['--version'], options);
-            if (utils.getVersion(stdout) ==
-                manifest.version.replace(re.SWIFT_RELEASE, '$1')) {
-                core.debug(`Found tool in ${toolPath} ${manifest.version} ${arch}`);
-                return toolPath;
+                        catch (error) { }
+                        toolPaths.push(toolchains.getXcodeDefaultToolchain());
+                        toolPaths = toolPaths
+                            .filter((toolPath) => __awaiter(this, void 0, void 0, function* () {
+                            try {
+                                const stats = fs.lstatSync(toolPath);
+                                const commandLine = path_1.default.join(toolPath, '/usr/bin/swift');
+                                const exsits = fs.existsSync(commandLine);
+                                return !stats.isSymbolicLink() && exsits;
+                            }
+                            catch (error) {
+                                return false;
+                            }
+                        }))
+                            .map(toolPath => path_1.default.join(toolPath, '/usr/bin'));
+                    }
+                    catch (error) { }
+                    break;
+                case 'ubuntu':
+                case 'centos':
+                case 'amazonlinux':
+                    try {
+                        toolPaths = (yield io.findInPath('swift')).map(commandLine => {
+                            return commandLine.split('/').slice(0, -1).join('/');
+                        });
+                    }
+                    catch (error) { }
+                    break;
+                default:
+                    break;
             }
-            core.debug('Not found');
+            // Check user installed...
+            for (const toolPath of toolPaths) {
+                core.debug(`Checking installed tool in ${toolPath}`);
+                const commandLine = path_1.default.join(toolPath, 'swift');
+                const options = { silent: true };
+                const { stdout } = yield exec.getExecOutput(commandLine, ['--version'], options);
+                if (utils.getVersion(stdout) ==
+                    manifest.version.replace(re.SWIFT_RELEASE, '$1')) {
+                    core.debug(`Found tool in ${toolPath} ${manifest.version} ${arch}`);
+                    return toolPath;
+                }
+                core.debug('Not found');
+            }
         }
         // Check setup-swift action installed...
         toolPath = tc.find('swift', manifest.version, arch);
