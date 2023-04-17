@@ -9824,7 +9824,7 @@ function find(manifest, arch = os.arch()) {
                 const commandLine = path.join(toolPath, 'swift');
                 const options = { silent: true };
                 const { stdout } = yield exec.getExecOutput(commandLine, ['--version'], options);
-                if (utils.getVersion(stdout) ==
+                if (utils.extractVerFromLogMessage(stdout) ==
                     manifest.version.replace(re_1.re[re_1.t.SWIFTRELEASE], '$1')) {
                     core.debug(`Found tool in ${toolPath} ${manifest.version} ${arch}`);
                     return toolPath;
@@ -9947,16 +9947,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.exportVariables = exports.install = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const io = __importStar(__nccwpck_require__(7436));
 const ioUtil = __importStar(__nccwpck_require__(1962));
 const exec = __importStar(__nccwpck_require__(1514));
-const path_1 = __importDefault(__nccwpck_require__(1017));
+const path = __importStar(__nccwpck_require__(1017));
 const gpg = __importStar(__nccwpck_require__(3759));
 const tc = __importStar(__nccwpck_require__(9456));
 const utils = __importStar(__nccwpck_require__(1314));
@@ -9970,7 +9967,7 @@ function install(manifest) {
             case 'darwin':
                 archivePath = yield tc.downloadTool(release.download_url);
                 archivePath = yield tc.extractXar(archivePath);
-                extractPath = yield tc.extractTar(path_1.default.join(archivePath, `${manifest.version}-osx-package.pkg`, 'Payload'));
+                extractPath = yield tc.extractTar(path.join(archivePath, `${manifest.version}-osx-package.pkg`, 'Payload'));
                 break;
             case 'ubuntu':
             case 'centos':
@@ -9984,7 +9981,7 @@ function install(manifest) {
                 yield gpg.importKeys();
                 yield gpg.verify(signature, archivePath);
                 extractPath = yield tc.extractTar(archivePath);
-                extractPath = path_1.default.join(extractPath, release.filename.replace('.tar.gz', ''));
+                extractPath = path.join(extractPath, release.filename.replace('.tar.gz', ''));
                 break;
             default:
                 throw new Error(`Installing Swift on ${release.platform} is not supported yet`);
@@ -10026,14 +10023,14 @@ function exportVariables(manifest, toolPath) {
                 core.debug(`export TOOLCHAINS environment variable: ${TOOLCHAINS}`);
                 core.exportVariable('TOOLCHAINS', TOOLCHAINS);
                 core.setOutput('TOOLCHAINS', TOOLCHAINS);
-                toolPath = path_1.default.join(toolPath, '/usr/bin');
+                toolPath = path.join(toolPath, '/usr/bin');
                 commandLine = 'xcrun';
                 args = ['swift', '--version'];
                 break;
             case 'ubuntu':
             case 'centos':
             case 'amazonlinux':
-                commandLine = path_1.default.join(toolPath, 'swift');
+                commandLine = path.join(toolPath, 'swift');
                 args = ['--version'];
                 break;
             default:
@@ -10041,9 +10038,9 @@ function exportVariables(manifest, toolPath) {
         }
         const options = { silent: true };
         const { stdout } = yield exec.getExecOutput(commandLine, args, options);
-        const swiftVersion = utils.getVersion(stdout);
+        const swiftVersion = utils.extractVerFromLogMessage(stdout);
         core.addPath(toolPath);
-        core.setOutput('swift-path', path_1.default.join(toolPath, 'swift'));
+        core.setOutput('swift-path', path.join(toolPath, 'swift'));
         core.setOutput('swift-version', swiftVersion);
         core.info(`Successfully set up Swift ${swiftVersion} (${manifest.version})`);
     });
@@ -10659,7 +10656,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getLinuxDistribID = exports.getLinuxDistribRelease = exports.__DISTRIB__ = exports.getVersion = void 0;
+exports.getLinuxDistribID = exports.getLinuxDistribRelease = exports.__DISTRIB__ = exports.extractVerFromLogMessage = void 0;
 const fs = __importStar(__nccwpck_require__(7147));
 /**
  * Gets Swift version from given stdout message
@@ -10667,11 +10664,11 @@ const fs = __importStar(__nccwpck_require__(7147));
  * @param message stdout message
  * @returns Swift version if success or empty
  */
-function getVersion(message) {
+function extractVerFromLogMessage(message) {
     const re = /.*Swift version (\d+\.\d+(\.\d+)?(-dev)?).*/is;
     return re.test(message) ? message.replace(re, '$1') : '';
 }
-exports.getVersion = getVersion;
+exports.extractVerFromLogMessage = extractVerFromLogMessage;
 function _getLinuxDistrib() {
     /*
       Ubuntu os-release:

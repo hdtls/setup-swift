@@ -1,12 +1,12 @@
 import * as fs from 'fs';
 
 /**
- * Gets Swift version from given stdout message
+ * Extract Swift version from given stdout message
  *
  * @param message stdout message
  * @returns Swift version if success or empty
  */
-export function getVersion(message: string) {
+export function extractVerFromLogMessage(message: string) {
   const re = /.*Swift version (\d+\.\d+(\.\d+)?(-dev)?).*/is;
   return re.test(message) ? message.replace(re, '$1') : '';
 }

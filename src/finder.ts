@@ -91,7 +91,7 @@ export async function find(
       );
 
       if (
-        utils.getVersion(stdout) ==
+        utils.extractVerFromLogMessage(stdout) ==
         manifest.version.replace(re[t.SWIFTRELEASE], '$1')
       ) {
         core.debug(`Found tool in ${toolPath} ${manifest.version} ${arch}`);

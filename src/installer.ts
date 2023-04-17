@@ -2,7 +2,7 @@ import * as core from '@actions/core';
 import * as io from '@actions/io';
 import * as ioUtil from '@actions/io/lib/io-util';
 import * as exec from '@actions/exec';
-import path from 'path';
+import * as path from 'path';
 import * as gpg from './gpg';
 import * as tc from './tool-cache';
 import * as utils from './utils';
@@ -115,7 +115,7 @@ export async function exportVariables(
   const options: exec.ExecOptions = { silent: true };
   const { stdout } = await exec.getExecOutput(commandLine, args, options);
 
-  const swiftVersion = utils.getVersion(stdout);
+  const swiftVersion = utils.extractVerFromLogMessage(stdout);
 
   core.addPath(toolPath);
   core.setOutput('swift-path', path.join(toolPath, 'swift'));

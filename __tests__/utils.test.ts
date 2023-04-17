@@ -1,5 +1,5 @@
 import * as utils from '../src/utils';
-import fs from 'fs';
+import * as fs from 'fs';
 
 jest.mock('fs');
 
@@ -40,7 +40,7 @@ Target: x86_64-apple-macosx12.0`,
         '5.7.1'
       ]
     ])('parse version %s', (_, message, expected) => {
-      expect(utils.getVersion(message)).toBe(expected);
+      expect(utils.extractVerFromLogMessage(message)).toBe(expected);
     });
   });
 
