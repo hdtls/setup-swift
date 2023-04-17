@@ -1,11 +1,11 @@
 import * as core from '@actions/core';
 import * as tc from '@actions/tool-cache';
-import * as re from './re';
 import * as semver from 'semver';
 import * as os from 'os';
 import * as fs from 'fs';
 import path from 'path';
 import assert from 'assert';
+import { re, src, t } from './re';
 
 export {
   downloadTool,
@@ -26,7 +26,11 @@ export {
 export function find(toolName: string, versionSpec: string, arch?: string) {
   const version = _getCacheVersion(versionSpec);
 
-  if (!/^(main|(\d+\.\d+(\.\d+)?))\+\d+$/.test(version)) {
+  const pattern = `^(?:main|${src[t.NUMERICIDENTIFIER]}\.${
+    src[t.NUMERICIDENTIFIER]
+  })\\+${src[t.NUMERICIDENTIFIER]}$`;
+
+  if (!new RegExp(pattern).test(version)) {
     return tc.find(toolName, version, arch);
   }
 
@@ -83,30 +87,18 @@ function _getCacheDirectory() {
  * @param versionSpec   the tag of tool
  * @returns             resolved tool cache version
  */
-function _getCacheVersion(versionSpec: string) {
-  if (re.SWIFT_RELEASE.test(versionSpec)) {
-    versionSpec = versionSpec.replace(re.SWIFT_RELEASE, '$1');
-    return semver.coerce(versionSpec)?.version || '';
-  } else if (
-    /^swift-(\d+\.\d+(\.\d+)?)-DEVELOPMENT-SNAPSHOT-(\d+-\d+-\d+)-a/.test(
-      versionSpec
-    )
-  ) {
-    //
-    return versionSpec
-      .replace(
-        /^swift-(\d+\.\d+(\.\d+)?)-DEVELOPMENT-SNAPSHOT-(\d+-\d+-\d+)-a/,
-        '$1+$3'
-      )
-      .replace(/-/g, '');
-  } else if (/^swift-DEVELOPMENT-SNAPSHOT-(.+)-a$/.test(versionSpec)) {
-    return (
-      'main+' +
-      versionSpec
-        .replace(/^swift-DEVELOPMENT-SNAPSHOT-(.+)-a$/, '$1')
-        .replace(/-/g, '')
-    );
-  } else {
-    throw new Error('versionSpec parameter is invalid');
+export function _getCacheVersion(versionSpec: string) {
+  switch (true) {
+    case re[t.SWIFTRELEASE].test(versionSpec):
+      versionSpec = versionSpec.replace(re[t.SWIFTRELEASE], '$1');
+      return semver.coerce(versionSpec)?.version || '';
+    case re[t.SWIFTNIGHTLY].test(versionSpec):
+      return versionSpec.replace(re[t.SWIFTNIGHTLY], '$1+$6$7$8');
+    case re[t.SWIFTMAINLINENIGHTLY].test(versionSpec):
+      return versionSpec.replace(re[t.SWIFTMAINLINENIGHTLY], 'main+$1$2$3');
+    default:
+      throw new Error(
+        `Cannot resolve cache tool version for an unsupported version: ${versionSpec}`
+      );
   }
 }

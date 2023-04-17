@@ -1,27 +1,59 @@
-/**
- * Semantic version RegExp
- */
-export const SWIFT_SEMANTIC_VERSION = /^\d+(\.\d+)?(\.\d+)?$/;
+const re: RegExp[] = [];
+const src: string[] = [];
+const t: { [key: string]: number } = {};
+let R = 0;
 
-/**
- * Swift release RegExp
- */
-export const SWIFT_RELEASE = /^swift-(\d+\.\d+(\.\d+)?)-RELEASE$/;
+function createToken(name: string, value: string, flags?: string) {
+  const index = R++;
+  t[name] = index;
+  src[index] = value;
+  re[index] = new RegExp(value, flags);
+}
 
-/**
- * Swift nightly(development snapshot) RegExp
- */
-export const SWIFT_NIGHTLY =
-  /^(swift|nightly)-(\d+\.\d+)(-DEVELOPMENT-SNAPSHOT-.+-a)?$/;
+// ## Numeric Identifier
+// A single `0`, or a non-zero digit followed by zero or more digits.
+createToken('NUMERICIDENTIFIER', '[0-9]+');
 
-/**
- * Swift nightly(mainline development snapshot) RegExp
- */
-export const SWIFT_MAINLINE_NIGHTLY =
-  /^(nightly(-main)?|swift-DEVELOPMENT-SNAPSHOT-.+-a)$/;
+// ## Main Version
+// Three dot-separated numeric identifiers. patch version can be undefined
+createToken(
+  'MAINVERSION',
+  `(${src[t.NUMERICIDENTIFIER]})\\.` +
+    `(${src[t.NUMERICIDENTIFIER]})` +
+    `(\\.(${src[t.NUMERICIDENTIFIER]}))?`
+);
 
-/**
- * Swift TOOLCHAINS RegExp
- */
-export const TOOLCHAINS =
-  /(CFBundle)?Identifier<\/key>\n*\t*<string>(?<TOOLCHAINS>.*)<\/string>/;
+// ## TOOLCHAIN
+createToken(
+  'TOOLCHAINS',
+  '(CFBundle)?Identifier</key>\n*\t*<string>(?<TOOLCHAINS>.*)</string>'
+);
+
+// ## Swift RELEASE tag
+// Combination of `swift-`, `MAINVERSION` and `-RELEASE`.
+createToken('SWIFTRELEASE', `^swift-(${src[t.MAINVERSION]})-RELEASE$`);
+
+// ## Swift development snapshot tag suffix
+createToken(
+  'DEVELOPMENTSNAPSHOT',
+  '-DEVELOPMENT-SNAPSHOT-' +
+    `(${src[t.NUMERICIDENTIFIER]})-` +
+    `(${src[t.NUMERICIDENTIFIER]})-` +
+    `(${src[t.NUMERICIDENTIFIER]})-a`
+);
+
+// ## Swift branch specified nightly tag
+createToken(
+  'SWIFTNIGHTLY',
+  `^swift-(${src[t.MAINVERSION]})${src[t.DEVELOPMENTSNAPSHOT]}$`
+);
+
+createToken('SWIFTNIGHTLYLOOSE', `^nightly-(${src[t.MAINVERSION]})$`);
+
+// ## Swift mainline nightly tag
+createToken(
+  'SWIFTMAINLINENIGHTLY',
+  `(?:^swift${src[t.DEVELOPMENTSNAPSHOT]}$|^nightly(?:-main)?$)`
+);
+
+export { re, src, t };

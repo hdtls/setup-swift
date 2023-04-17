@@ -1,5 +1,11 @@
-import fs from 'fs';
+import * as fs from 'fs';
 
+/**
+ * Gets Swift version from given stdout message
+ *
+ * @param message stdout message
+ * @returns Swift version if success or empty
+ */
 export function getVersion(message: string) {
   const re = /.*Swift version (\d+\.\d+(\.\d+)?(-dev)?).*/is;
   return re.test(message) ? message.replace(re, '$1') : '';
@@ -57,6 +63,9 @@ function _getLinuxDistrib() {
   return '';
 }
 
+/**
+ * Gets Linux release version
+ */
 export function getLinuxDistribRelease() {
   const __DISTRIB__ = _getLinuxDistrib();
 
@@ -66,6 +75,9 @@ export function getLinuxDistribRelease() {
   );
 }
 
+/**
+ * Gets and resolve Linux distrib id
+ */
 export function getLinuxDistribID() {
   let distrib_id = _getLinuxDistrib()
     .split('\n')

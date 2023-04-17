@@ -1,8 +1,17 @@
 import * as tc from './tool-cache';
 import * as fs from 'fs';
-import * as re from './re';
 import * as semver from 'semver';
+import { re, src, t } from './re';
 
+/**
+ *  Resolve tool manifest from given tag platform arch and platform version
+ *
+ * @param versionSpec     input tag of tool
+ * @param platform
+ * @param architecture
+ * @param platformVersion optionala platform version
+ * @returns
+ */
 export async function resolve(
   versionSpec: string,
   platform: string,
@@ -47,22 +56,32 @@ export async function resolve(
       throw new Error('Cannot create release file for an unsupported OS');
   }
 
-  if (re.SWIFT_NIGHTLY.test(SWIFT_VERSION)) {
-    SWIFT_BRANCH = `swift-${versionSpec.replace(
-      re.SWIFT_NIGHTLY,
-      '$2'
-    )}-branch`;
-  } else if (re.SWIFT_MAINLINE_NIGHTLY.test(SWIFT_VERSION)) {
-    SWIFT_BRANCH = 'development';
-  } else {
-    SWIFT_BRANCH = SWIFT_VERSION.toLowerCase();
+  switch (true) {
+    case re[t.SWIFTNIGHTLY].test(versionSpec):
+      SWIFT_BRANCH = `swift-${versionSpec.replace(
+        re[t.SWIFTNIGHTLY],
+        '$1'
+      )}-branch`;
+      break;
+    case re[t.SWIFTNIGHTLYLOOSE].test(versionSpec):
+      SWIFT_BRANCH = `swift-${versionSpec.replace(
+        re[t.SWIFTNIGHTLYLOOSE],
+        '$1'
+      )}-branch`;
+      break;
+    case re[t.SWIFTMAINLINENIGHTLY].test(versionSpec):
+      SWIFT_BRANCH = 'development';
+      break;
+    default:
+      SWIFT_BRANCH = SWIFT_VERSION.toLowerCase();
+      break;
   }
 
   const _SWIFT_PLATFORM = SWIFT_PLATFORM.replace('.', '');
 
   return {
     version: SWIFT_VERSION,
-    stable: re.SWIFT_RELEASE.test(SWIFT_VERSION),
+    stable: re[t.SWIFTRELEASE].test(SWIFT_VERSION),
     release_url: '',
     files: [
       {
@@ -76,45 +95,65 @@ export async function resolve(
   };
 }
 
+/**
+ * Resolve latest build version tag from give tag and platform
+ *
+ * @param versionSpec tag of the tool
+ * @param platform    resolved platform
+ * @returns
+ */
 export async function resolveLatestBuildIfNeeded(
   versionSpec: string,
   platform: string
 ): Promise<string> {
-  if (re.SWIFT_SEMANTIC_VERSION.test(versionSpec)) {
-    if (!tc.isExplicitVersion(versionSpec)) {
-      versionSpec = tc.evaluateVersions(SWIFT_VERSIONS, versionSpec);
+  let branch = '';
+  switch (true) {
+    case new RegExp(`^${src[t.MAINVERSION]}$`).test(versionSpec):
+    case new RegExp(`^${src[t.NUMERICIDENTIFIER]}$`).test(versionSpec):
+      if (!tc.isExplicitVersion(versionSpec)) {
+        versionSpec = tc.evaluateVersions(SWIFT_VERSIONS, versionSpec);
+        // If patch version is 0 remove it.
+        versionSpec = versionSpec.replace(/([0-9]+\.[0-9]+).0/, '$1');
+      }
+      return `swift-${versionSpec}-RELEASE`;
+    case re[t.SWIFTRELEASE].test(versionSpec):
+      const m = versionSpec.match(re[t.SWIFTRELEASE]) || [];
+      if (tc.isExplicitVersion(m[1])) {
+        return versionSpec;
+      }
+      versionSpec = tc.evaluateVersions(SWIFT_VERSIONS, m[1]);
       // If patch version is 0 remove it.
-      versionSpec = versionSpec.replace(/(\d+\.\d+).0/, '$1');
-    }
-    return `swift-${versionSpec}-RELEASE`;
-  } else if (re.SWIFT_RELEASE.test(versionSpec)) {
-    const m = versionSpec.match(re.SWIFT_RELEASE) || [];
-    if (tc.isExplicitVersion(m[1])) {
-      return versionSpec;
-    }
-    versionSpec = tc.evaluateVersions(SWIFT_VERSIONS, m[1]);
-    // If patch version is 0 remove it.
-    versionSpec = versionSpec.replace(/(\d+\.\d+).0/, '$1');
-    return `swift-${versionSpec}-RELEASE`;
-  } else if (
-    re.SWIFT_NIGHTLY.test(versionSpec) ||
-    re.SWIFT_MAINLINE_NIGHTLY.test(versionSpec)
-  ) {
-    const branch = re.SWIFT_MAINLINE_NIGHTLY.test(versionSpec)
-      ? 'development'
-      : `swift-${versionSpec.replace(re.SWIFT_NIGHTLY, '$2')}-branch`;
-    const url = `https://download.swift.org/${branch}/${platform}/latest-build.yml`;
-    const path = await tc.downloadTool(url);
-    return fs.existsSync(path)
-      ? fs
-          .readFileSync(path)
-          .toString()
-          .match(/dir: ?(?<version>.*)/)?.groups?.version || ''
-      : '';
-  } else {
-    throw new Error(
-      `Cannot create release file for an unsupported version: ${versionSpec}`
-    );
+      versionSpec = versionSpec.replace(/([0-9]+\.[0-9]+).0/, '$1');
+      return `swift-${versionSpec}-RELEASE`;
+    case re[t.SWIFTNIGHTLY].test(versionSpec):
+    case re[t.SWIFTNIGHTLYLOOSE].test(versionSpec):
+    case re[t.SWIFTMAINLINENIGHTLY].test(versionSpec):
+      let branch = '';
+      if (re[t.SWIFTNIGHTLY].test(versionSpec)) {
+        branch = `swift-${versionSpec.replace(
+          re[t.SWIFTNIGHTLY],
+          '$1'
+        )}-branch`;
+      } else if (re[t.SWIFTNIGHTLYLOOSE].test(versionSpec)) {
+        branch = `swift-${versionSpec.replace(
+          re[t.SWIFTNIGHTLYLOOSE],
+          '$1'
+        )}-branch`;
+      } else {
+        branch = 'development';
+      }
+      const url = `https://download.swift.org/${branch}/${platform}/latest-build.yml`;
+      const path = await tc.downloadTool(url);
+      return fs.existsSync(path)
+        ? fs
+            .readFileSync(path)
+            .toString()
+            .match(/dir: ?(?<version>.*)/)?.groups?.version || ''
+        : '';
+    default:
+      throw new Error(
+        `Cannot create release file for an unsupported version: ${versionSpec}`
+      );
   }
 }
 

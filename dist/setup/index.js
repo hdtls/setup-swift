@@ -9739,9 +9739,6 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.find = void 0;
 const core = __importStar(__nccwpck_require__(2186));
@@ -9751,9 +9748,9 @@ const os = __importStar(__nccwpck_require__(2037));
 const fs = __importStar(__nccwpck_require__(7147));
 const tc = __importStar(__nccwpck_require__(9456));
 const utils = __importStar(__nccwpck_require__(1314));
-const re = __importStar(__nccwpck_require__(1075));
 const toolchains = __importStar(__nccwpck_require__(9322));
-const path_1 = __importDefault(__nccwpck_require__(1017));
+const path = __importStar(__nccwpck_require__(1017));
+const re_1 = __nccwpck_require__(1075);
 /**
  * Finds the path for tool in the system-wide
  *
@@ -9765,7 +9762,7 @@ function find(manifest, arch = os.arch()) {
     return __awaiter(this, void 0, void 0, function* () {
         let toolPath = '';
         // System-wide lookups for nightly versions will be ignored.
-        if (re.SWIFT_RELEASE.test(manifest.version)) {
+        if (re_1.re[re_1.t.SWIFTRELEASE].test(manifest.version)) {
             let toolPaths = [];
             // Platform specified system-wide finding.
             switch (manifest.files[0].platform) {
@@ -9796,7 +9793,7 @@ function find(manifest, arch = os.arch()) {
                             .filter((toolPath) => __awaiter(this, void 0, void 0, function* () {
                             try {
                                 const stats = fs.lstatSync(toolPath);
-                                const commandLine = path_1.default.join(toolPath, '/usr/bin/swift');
+                                const commandLine = path.join(toolPath, '/usr/bin/swift');
                                 const exsits = fs.existsSync(commandLine);
                                 return !stats.isSymbolicLink() && exsits;
                             }
@@ -9804,7 +9801,7 @@ function find(manifest, arch = os.arch()) {
                                 return false;
                             }
                         }))
-                            .map(toolPath => path_1.default.join(toolPath, '/usr/bin'));
+                            .map(toolPath => path.join(toolPath, '/usr/bin'));
                     }
                     catch (error) { }
                     break;
@@ -9824,11 +9821,11 @@ function find(manifest, arch = os.arch()) {
             // Check user installed...
             for (const toolPath of toolPaths) {
                 core.debug(`Checking installed tool in ${toolPath}`);
-                const commandLine = path_1.default.join(toolPath, 'swift');
+                const commandLine = path.join(toolPath, 'swift');
                 const options = { silent: true };
                 const { stdout } = yield exec.getExecOutput(commandLine, ['--version'], options);
                 if (utils.getVersion(stdout) ==
-                    manifest.version.replace(re.SWIFT_RELEASE, '$1')) {
+                    manifest.version.replace(re_1.re[re_1.t.SWIFTRELEASE], '$1')) {
                     core.debug(`Found tool in ${toolPath} ${manifest.version} ${arch}`);
                     return toolPath;
                 }
@@ -9841,7 +9838,7 @@ function find(manifest, arch = os.arch()) {
             core.info(`Version ${manifest.version} was not found in the local cache`);
             return '';
         }
-        return path_1.default.join(toolPath, '/usr/bin');
+        return path.join(toolPath, '/usr/bin');
     });
 }
 exports.find = find;
@@ -10190,8 +10187,17 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.resolveLatestBuildIfNeeded = exports.resolve = void 0;
 const tc = __importStar(__nccwpck_require__(9456));
 const fs = __importStar(__nccwpck_require__(7147));
-const re = __importStar(__nccwpck_require__(1075));
 const semver = __importStar(__nccwpck_require__(1383));
+const re_1 = __nccwpck_require__(1075);
+/**
+ *  Resolve tool manifest from given tag platform arch and platform version
+ *
+ * @param versionSpec     input tag of tool
+ * @param platform
+ * @param architecture
+ * @param platformVersion optionala platform version
+ * @returns
+ */
 function resolve(versionSpec, platform, architecture, platformVersion) {
     return __awaiter(this, void 0, void 0, function* () {
         let SWIFT_VERSION = '';
@@ -10219,19 +10225,24 @@ function resolve(versionSpec, platform, architecture, platformVersion) {
             default:
                 throw new Error('Cannot create release file for an unsupported OS');
         }
-        if (re.SWIFT_NIGHTLY.test(SWIFT_VERSION)) {
-            SWIFT_BRANCH = `swift-${versionSpec.replace(re.SWIFT_NIGHTLY, '$2')}-branch`;
-        }
-        else if (re.SWIFT_MAINLINE_NIGHTLY.test(SWIFT_VERSION)) {
-            SWIFT_BRANCH = 'development';
-        }
-        else {
-            SWIFT_BRANCH = SWIFT_VERSION.toLowerCase();
+        switch (true) {
+            case re_1.re[re_1.t.SWIFTNIGHTLY].test(versionSpec):
+                SWIFT_BRANCH = `swift-${versionSpec.replace(re_1.re[re_1.t.SWIFTNIGHTLY], '$1')}-branch`;
+                break;
+            case re_1.re[re_1.t.SWIFTNIGHTLYLOOSE].test(versionSpec):
+                SWIFT_BRANCH = `swift-${versionSpec.replace(re_1.re[re_1.t.SWIFTNIGHTLYLOOSE], '$1')}-branch`;
+                break;
+            case re_1.re[re_1.t.SWIFTMAINLINENIGHTLY].test(versionSpec):
+                SWIFT_BRANCH = 'development';
+                break;
+            default:
+                SWIFT_BRANCH = SWIFT_VERSION.toLowerCase();
+                break;
         }
         const _SWIFT_PLATFORM = SWIFT_PLATFORM.replace('.', '');
         return {
             version: SWIFT_VERSION,
-            stable: re.SWIFT_RELEASE.test(SWIFT_VERSION),
+            stable: re_1.re[re_1.t.SWIFTRELEASE].test(SWIFT_VERSION),
             release_url: '',
             files: [
                 {
@@ -10246,43 +10257,58 @@ function resolve(versionSpec, platform, architecture, platformVersion) {
     });
 }
 exports.resolve = resolve;
+/**
+ * Resolve latest build version tag from give tag and platform
+ *
+ * @param versionSpec tag of the tool
+ * @param platform    resolved platform
+ * @returns
+ */
 function resolveLatestBuildIfNeeded(versionSpec, platform) {
     var _a, _b;
     return __awaiter(this, void 0, void 0, function* () {
-        if (re.SWIFT_SEMANTIC_VERSION.test(versionSpec)) {
-            if (!tc.isExplicitVersion(versionSpec)) {
-                versionSpec = tc.evaluateVersions(SWIFT_VERSIONS, versionSpec);
+        let branch = '';
+        switch (true) {
+            case new RegExp(`^${re_1.src[re_1.t.MAINVERSION]}$`).test(versionSpec):
+            case new RegExp(`^${re_1.src[re_1.t.NUMERICIDENTIFIER]}$`).test(versionSpec):
+                if (!tc.isExplicitVersion(versionSpec)) {
+                    versionSpec = tc.evaluateVersions(SWIFT_VERSIONS, versionSpec);
+                    // If patch version is 0 remove it.
+                    versionSpec = versionSpec.replace(/([0-9]+\.[0-9]+).0/, '$1');
+                }
+                return `swift-${versionSpec}-RELEASE`;
+            case re_1.re[re_1.t.SWIFTRELEASE].test(versionSpec):
+                const m = versionSpec.match(re_1.re[re_1.t.SWIFTRELEASE]) || [];
+                if (tc.isExplicitVersion(m[1])) {
+                    return versionSpec;
+                }
+                versionSpec = tc.evaluateVersions(SWIFT_VERSIONS, m[1]);
                 // If patch version is 0 remove it.
-                versionSpec = versionSpec.replace(/(\d+\.\d+).0/, '$1');
-            }
-            return `swift-${versionSpec}-RELEASE`;
-        }
-        else if (re.SWIFT_RELEASE.test(versionSpec)) {
-            const m = versionSpec.match(re.SWIFT_RELEASE) || [];
-            if (tc.isExplicitVersion(m[1])) {
-                return versionSpec;
-            }
-            versionSpec = tc.evaluateVersions(SWIFT_VERSIONS, m[1]);
-            // If patch version is 0 remove it.
-            versionSpec = versionSpec.replace(/(\d+\.\d+).0/, '$1');
-            return `swift-${versionSpec}-RELEASE`;
-        }
-        else if (re.SWIFT_NIGHTLY.test(versionSpec) ||
-            re.SWIFT_MAINLINE_NIGHTLY.test(versionSpec)) {
-            const branch = re.SWIFT_MAINLINE_NIGHTLY.test(versionSpec)
-                ? 'development'
-                : `swift-${versionSpec.replace(re.SWIFT_NIGHTLY, '$2')}-branch`;
-            const url = `https://download.swift.org/${branch}/${platform}/latest-build.yml`;
-            const path = yield tc.downloadTool(url);
-            return fs.existsSync(path)
-                ? ((_b = (_a = fs
-                    .readFileSync(path)
-                    .toString()
-                    .match(/dir: ?(?<version>.*)/)) === null || _a === void 0 ? void 0 : _a.groups) === null || _b === void 0 ? void 0 : _b.version) || ''
-                : '';
-        }
-        else {
-            throw new Error(`Cannot create release file for an unsupported version: ${versionSpec}`);
+                versionSpec = versionSpec.replace(/([0-9]+\.[0-9]+).0/, '$1');
+                return `swift-${versionSpec}-RELEASE`;
+            case re_1.re[re_1.t.SWIFTNIGHTLY].test(versionSpec):
+            case re_1.re[re_1.t.SWIFTNIGHTLYLOOSE].test(versionSpec):
+            case re_1.re[re_1.t.SWIFTMAINLINENIGHTLY].test(versionSpec):
+                let branch = '';
+                if (re_1.re[re_1.t.SWIFTNIGHTLY].test(versionSpec)) {
+                    branch = `swift-${versionSpec.replace(re_1.re[re_1.t.SWIFTNIGHTLY], '$1')}-branch`;
+                }
+                else if (re_1.re[re_1.t.SWIFTNIGHTLYLOOSE].test(versionSpec)) {
+                    branch = `swift-${versionSpec.replace(re_1.re[re_1.t.SWIFTNIGHTLYLOOSE], '$1')}-branch`;
+                }
+                else {
+                    branch = 'development';
+                }
+                const url = `https://download.swift.org/${branch}/${platform}/latest-build.yml`;
+                const path = yield tc.downloadTool(url);
+                return fs.existsSync(path)
+                    ? ((_b = (_a = fs
+                        .readFileSync(path)
+                        .toString()
+                        .match(/dir: ?(?<version>.*)/)) === null || _a === void 0 ? void 0 : _a.groups) === null || _b === void 0 ? void 0 : _b.version) || ''
+                    : '';
+            default:
+                throw new Error(`Cannot create release file for an unsupported version: ${versionSpec}`);
         }
     });
 }
@@ -10313,27 +10339,43 @@ const SWIFT_VERSIONS = [
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.TOOLCHAINS = exports.SWIFT_MAINLINE_NIGHTLY = exports.SWIFT_NIGHTLY = exports.SWIFT_RELEASE = exports.SWIFT_SEMANTIC_VERSION = void 0;
-/**
- * Semantic version RegExp
- */
-exports.SWIFT_SEMANTIC_VERSION = /^\d+(\.\d+)?(\.\d+)?$/;
-/**
- * Swift release RegExp
- */
-exports.SWIFT_RELEASE = /^swift-(\d+\.\d+(\.\d+)?)-RELEASE$/;
-/**
- * Swift nightly(development snapshot) RegExp
- */
-exports.SWIFT_NIGHTLY = /^(swift|nightly)-(\d+\.\d+)(-DEVELOPMENT-SNAPSHOT-.+-a)?$/;
-/**
- * Swift nightly(mainline development snapshot) RegExp
- */
-exports.SWIFT_MAINLINE_NIGHTLY = /^(nightly(-main)?|swift-DEVELOPMENT-SNAPSHOT-.+-a)$/;
-/**
- * Swift TOOLCHAINS RegExp
- */
-exports.TOOLCHAINS = /(CFBundle)?Identifier<\/key>\n*\t*<string>(?<TOOLCHAINS>.*)<\/string>/;
+exports.t = exports.src = exports.re = void 0;
+const re = [];
+exports.re = re;
+const src = [];
+exports.src = src;
+const t = {};
+exports.t = t;
+let R = 0;
+function createToken(name, value, flags) {
+    const index = R++;
+    t[name] = index;
+    src[index] = value;
+    re[index] = new RegExp(value, flags);
+}
+// ## Numeric Identifier
+// A single `0`, or a non-zero digit followed by zero or more digits.
+createToken('NUMERICIDENTIFIER', '[0-9]+');
+// ## Main Version
+// Three dot-separated numeric identifiers. patch version can be undefined
+createToken('MAINVERSION', `(${src[t.NUMERICIDENTIFIER]})\\.` +
+    `(${src[t.NUMERICIDENTIFIER]})` +
+    `(\\.(${src[t.NUMERICIDENTIFIER]}))?`);
+// ## TOOLCHAIN
+createToken('TOOLCHAINS', '(CFBundle)?Identifier</key>\n*\t*<string>(?<TOOLCHAINS>.*)</string>');
+// ## Swift RELEASE tag
+// Combination of `swift-`, `MAINVERSION` and `-RELEASE`.
+createToken('SWIFTRELEASE', `^swift-(${src[t.MAINVERSION]})-RELEASE$`);
+// ## Swift development snapshot tag suffix
+createToken('DEVELOPMENTSNAPSHOT', '-DEVELOPMENT-SNAPSHOT-' +
+    `(${src[t.NUMERICIDENTIFIER]})-` +
+    `(${src[t.NUMERICIDENTIFIER]})-` +
+    `(${src[t.NUMERICIDENTIFIER]})-a`);
+// ## Swift branch specified nightly tag
+createToken('SWIFTNIGHTLY', `^swift-(${src[t.MAINVERSION]})${src[t.DEVELOPMENTSNAPSHOT]}$`);
+createToken('SWIFTNIGHTLYLOOSE', `^nightly-(${src[t.MAINVERSION]})$`);
+// ## Swift mainline nightly tag
+createToken('SWIFTMAINLINENIGHTLY', `(?:^swift${src[t.DEVELOPMENTSNAPSHOT]}$|^nightly(?:-main)?$)`);
 
 
 /***/ }),
@@ -10414,15 +10456,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.cacheDir = exports.find = exports.isExplicitVersion = exports.extractXar = exports.extractTar = exports.evaluateVersions = exports.downloadTool = void 0;
+exports._getCacheVersion = exports.cacheDir = exports.find = exports.isExplicitVersion = exports.extractXar = exports.extractTar = exports.evaluateVersions = exports.downloadTool = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const tc = __importStar(__nccwpck_require__(7784));
-const re = __importStar(__nccwpck_require__(1075));
 const semver = __importStar(__nccwpck_require__(1383));
 const os = __importStar(__nccwpck_require__(2037));
 const fs = __importStar(__nccwpck_require__(7147));
 const path_1 = __importDefault(__nccwpck_require__(1017));
 const assert_1 = __importDefault(__nccwpck_require__(9491));
+const re_1 = __nccwpck_require__(1075);
 var tool_cache_1 = __nccwpck_require__(7784);
 Object.defineProperty(exports, "downloadTool", ({ enumerable: true, get: function () { return tool_cache_1.downloadTool; } }));
 Object.defineProperty(exports, "evaluateVersions", ({ enumerable: true, get: function () { return tool_cache_1.evaluateVersions; } }));
@@ -10438,7 +10480,8 @@ Object.defineProperty(exports, "isExplicitVersion", ({ enumerable: true, get: fu
  */
 function find(toolName, versionSpec, arch) {
     const version = _getCacheVersion(versionSpec);
-    if (!/^(main|(\d+\.\d+(\.\d+)?))\+\d+$/.test(version)) {
+    const pattern = `^(?:main|${re_1.src[re_1.t.NUMERICIDENTIFIER]}\.${re_1.src[re_1.t.NUMERICIDENTIFIER]})\\+${re_1.src[re_1.t.NUMERICIDENTIFIER]}$`;
+    if (!new RegExp(pattern).test(version)) {
         return tc.find(toolName, version, arch);
     }
     if (!toolName) {
@@ -10492,26 +10535,19 @@ function _getCacheDirectory() {
  */
 function _getCacheVersion(versionSpec) {
     var _a;
-    if (re.SWIFT_RELEASE.test(versionSpec)) {
-        versionSpec = versionSpec.replace(re.SWIFT_RELEASE, '$1');
-        return ((_a = semver.coerce(versionSpec)) === null || _a === void 0 ? void 0 : _a.version) || '';
-    }
-    else if (/^swift-(\d+\.\d+(\.\d+)?)-DEVELOPMENT-SNAPSHOT-(\d+-\d+-\d+)-a/.test(versionSpec)) {
-        //
-        return versionSpec
-            .replace(/^swift-(\d+\.\d+(\.\d+)?)-DEVELOPMENT-SNAPSHOT-(\d+-\d+-\d+)-a/, '$1+$3')
-            .replace(/-/g, '');
-    }
-    else if (/^swift-DEVELOPMENT-SNAPSHOT-(.+)-a$/.test(versionSpec)) {
-        return ('main+' +
-            versionSpec
-                .replace(/^swift-DEVELOPMENT-SNAPSHOT-(.+)-a$/, '$1')
-                .replace(/-/g, ''));
-    }
-    else {
-        throw new Error('versionSpec parameter is invalid');
+    switch (true) {
+        case re_1.re[re_1.t.SWIFTRELEASE].test(versionSpec):
+            versionSpec = versionSpec.replace(re_1.re[re_1.t.SWIFTRELEASE], '$1');
+            return ((_a = semver.coerce(versionSpec)) === null || _a === void 0 ? void 0 : _a.version) || '';
+        case re_1.re[re_1.t.SWIFTNIGHTLY].test(versionSpec):
+            return versionSpec.replace(re_1.re[re_1.t.SWIFTNIGHTLY], '$1+$6$7$8');
+        case re_1.re[re_1.t.SWIFTMAINLINENIGHTLY].test(versionSpec):
+            return versionSpec.replace(re_1.re[re_1.t.SWIFTMAINLINENIGHTLY], 'main+$1$2$3');
+        default:
+            throw new Error(`Cannot resolve cache tool version for an unsupported version: ${versionSpec}`);
     }
 }
+exports._getCacheVersion = _getCacheVersion;
 
 
 /***/ }),
@@ -10544,35 +10580,48 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getXcodeDefaultToolchain = exports.getToolchain = exports.getToolchainsDirectory = exports.parseBundleIDFromDirectory = void 0;
-const fs_1 = __importDefault(__nccwpck_require__(7147));
-const os_1 = __importDefault(__nccwpck_require__(2037));
-const path_1 = __importDefault(__nccwpck_require__(1017));
-const re = __importStar(__nccwpck_require__(1075));
+const fs = __importStar(__nccwpck_require__(7147));
+const os = __importStar(__nccwpck_require__(2037));
+const path = __importStar(__nccwpck_require__(1017));
+const re_1 = __nccwpck_require__(1075);
+/**
+ * Gets bundle identifier from Info.plist or ToolchainInfo.plist
+ *
+ * @param at directory of the info plist
+ * @returns  bundle identifier if success or empty
+ */
 function parseBundleIDFromDirectory(at) {
     var _a, _b;
-    let pl = path_1.default.join(at, 'Info.plist');
-    if (!fs_1.default.existsSync(pl)) {
-        pl = path_1.default.join(at, 'ToolchainInfo.plist');
-        if (!fs_1.default.existsSync(pl)) {
+    let pl = path.join(at, 'Info.plist');
+    if (!fs.existsSync(pl)) {
+        pl = path.join(at, 'ToolchainInfo.plist');
+        if (!fs.existsSync(pl)) {
             return '';
         }
     }
-    return (((_b = (_a = fs_1.default.readFileSync(pl, 'utf8').match(re.TOOLCHAINS)) === null || _a === void 0 ? void 0 : _a.groups) === null || _b === void 0 ? void 0 : _b.TOOLCHAINS) || '');
+    return (((_b = (_a = fs.readFileSync(pl, 'utf8').match(re_1.re[re_1.t.TOOLCHAINS])) === null || _a === void 0 ? void 0 : _a.groups) === null || _b === void 0 ? void 0 : _b.TOOLCHAINS) ||
+        '');
 }
 exports.parseBundleIDFromDirectory = parseBundleIDFromDirectory;
 function getToolchainsDirectory() {
-    return path_1.default.join(os_1.default.homedir(), '/Library/Developer/Toolchains');
+    return path.join(os.homedir(), '/Library/Developer/Toolchains');
 }
 exports.getToolchainsDirectory = getToolchainsDirectory;
+/**
+ * Gets xctoolchain path with toolchain name
+ *
+ * @param named toolchain name
+ * @returns path for toolchain
+ */
 function getToolchain(named) {
-    return path_1.default.join(getToolchainsDirectory(), `${named}.xctoolchain`);
+    return path.join(getToolchainsDirectory(), `${named}.xctoolchain`);
 }
 exports.getToolchain = getToolchain;
+/**
+ * Gets the Xcode default toolchain path
+ */
 function getXcodeDefaultToolchain() {
     return '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain';
 }
@@ -10586,12 +10635,38 @@ exports.getXcodeDefaultToolchain = getXcodeDefaultToolchain;
 
 "use strict";
 
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getLinuxDistribID = exports.getLinuxDistribRelease = exports.__DISTRIB__ = exports.getVersion = void 0;
-const fs_1 = __importDefault(__nccwpck_require__(7147));
+const fs = __importStar(__nccwpck_require__(7147));
+/**
+ * Gets Swift version from given stdout message
+ *
+ * @param message stdout message
+ * @returns Swift version if success or empty
+ */
 function getVersion(message) {
     const re = /.*Swift version (\d+\.\d+(\.\d+)?(-dev)?).*/is;
     return re.test(message) ? message.replace(re, '$1') : '';
@@ -10640,17 +10715,23 @@ function _getLinuxDistrib() {
         CENTOS_MANTISBT_PROJECT_VERSION="8"
     */
     const osReleaseFile = '/etc/os-release';
-    if (fs_1.default.existsSync(osReleaseFile)) {
-        return fs_1.default.readFileSync(osReleaseFile).toString();
+    if (fs.existsSync(osReleaseFile)) {
+        return fs.readFileSync(osReleaseFile).toString();
     }
     return '';
 }
+/**
+ * Gets Linux release version
+ */
 function getLinuxDistribRelease() {
     var _a, _b;
     const __DISTRIB__ = _getLinuxDistrib();
     return (((_b = (_a = __DISTRIB__.match(/VERSION_ID="(?<distrib_release>.*)"/)) === null || _a === void 0 ? void 0 : _a.groups) === null || _b === void 0 ? void 0 : _b.distrib_release) || '');
 }
 exports.getLinuxDistribRelease = getLinuxDistribRelease;
+/**
+ * Gets and resolve Linux distrib id
+ */
 function getLinuxDistribID() {
     let distrib_id = _getLinuxDistrib()
         .split('\n')

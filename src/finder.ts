@@ -5,9 +5,9 @@ import * as os from 'os';
 import * as fs from 'fs';
 import * as tc from './tool-cache';
 import * as utils from './utils';
-import * as re from './re';
 import * as toolchains from './toolchains';
-import path from 'path';
+import * as path from 'path';
+import { re, t } from './re';
 
 /**
  * Finds the path for tool in the system-wide
@@ -23,7 +23,7 @@ export async function find(
   let toolPath = '';
 
   // System-wide lookups for nightly versions will be ignored.
-  if (re.SWIFT_RELEASE.test(manifest.version)) {
+  if (re[t.SWIFTRELEASE].test(manifest.version)) {
     let toolPaths: string[] = [];
 
     // Platform specified system-wide finding.
@@ -92,7 +92,7 @@ export async function find(
 
       if (
         utils.getVersion(stdout) ==
-        manifest.version.replace(re.SWIFT_RELEASE, '$1')
+        manifest.version.replace(re[t.SWIFTRELEASE], '$1')
       ) {
         core.debug(`Found tool in ${toolPath} ${manifest.version} ${arch}`);
         return toolPath;
