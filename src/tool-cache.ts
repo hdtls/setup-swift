@@ -1,10 +1,11 @@
 import * as core from '@actions/core';
 import * as tc from '@actions/tool-cache';
-import assert from 'assert';
+import * as re from './re';
+import * as semver from 'semver';
+import * as os from 'os';
 import * as fs from 'fs';
 import path from 'path';
-import * as re from './re';
-import { getCacheVersion } from './utils';
+import assert from 'assert';
 
 export {
   downloadTool,
@@ -15,70 +16,56 @@ export {
   IToolRelease
 } from '@actions/tool-cache';
 
+/**
+ * Finds the path to a tool version in the local installed tool cache
+ *
+ * @param toolName      name of the tool
+ * @param versionSpec   tag of the tool
+ * @param arch          optional arch.  defaults to arch of computer
+ */
 export function find(toolName: string, versionSpec: string, arch?: string) {
-  const version = getCacheVersion(versionSpec);
+  const version = _getCacheVersion(versionSpec);
 
-  if (re.SWIFT_SEMANTIC_VERSION.test(version)) {
+  if (!/^(main|(\d+\.\d+(\.\d+)?))\+\d+$/.test(version)) {
     return tc.find(toolName, version, arch);
   }
 
-  //
-  // Find cache for nightly versions
-  //
-  arch = arch || process.arch;
-
-  let toolPath = '';
-  const cachePath = path.join(_getCacheDirectory(), toolName, version, arch);
-
-  core.debug(`checking cache: ${cachePath}`);
-  // If exists version is newer than required version return cached tool path otherwise return ''
-  if (
-    !fs.existsSync(path.join(cachePath, 'latest-build.yml')) ||
-    !fs.existsSync(`${cachePath}.complete`)
-  ) {
-    core.debug('not found');
-    return toolPath;
+  if (!toolName) {
+    throw new Error('toolName parameter is required');
+  }
+  if (!versionSpec) {
+    throw new Error('versionSpec parameter is required');
   }
 
-  const latest = fs
-    .readFileSync(path.join(cachePath, 'latest-build.yml'))
-    .toString()
-    .replace(/^dir: (.*)/, '$1');
-
-  if (latest >= versionSpec) {
-    core.debug(`Found tool in cache ${toolName} ${latest} ${arch}`);
+  arch = arch || os.arch();
+  let toolPath = '';
+  const cachePath = path.join(_getCacheDirectory(), toolName, version, arch);
+  core.debug(`checking cache: ${cachePath}`);
+  if (fs.existsSync(cachePath) && fs.existsSync(`${cachePath}.complete`)) {
+    core.debug(`Found tool in cache ${toolName} ${versionSpec} ${arch}`);
     toolPath = cachePath;
   } else {
     core.debug('not found');
   }
-
   return toolPath;
 }
 
+/**
+ * Caches a directory and installs it into the tool cacheDir
+ *
+ * @param sourceDir     the directory to cache into tools
+ * @param tool          tool name
+ * @param versionSpec   tag of the tool
+ * @param arch          architecture of the tool.  Optional.  Defaults to machine architecture
+ */
 export async function cacheDir(
   sourceDir: string,
   tool: string,
   versionSpec: string,
   arch?: string
 ) {
-  let version = getCacheVersion(versionSpec);
-
-  if (re.SWIFT_SEMANTIC_VERSION.test(version)) {
-    if (/^\d+.\d+$/.test(version)) {
-      version = version + '.0';
-    }
-    return await tc.cacheDir(sourceDir, tool, version, arch);
-  }
-
-  //
-  // Cache nightly versions
-  //
-  const toolPath = await tc.cacheDir(sourceDir, tool, version, arch);
-  fs.writeFileSync(
-    path.join(toolPath, 'latest-build.yml'),
-    `dir: ${versionSpec}`
-  );
-  return toolPath;
+  let version = _getCacheVersion(versionSpec);
+  return await tc.cacheDir(sourceDir, tool, version, arch);
 }
 
 /**
@@ -88,4 +75,38 @@ function _getCacheDirectory() {
   const cacheDirectory = process.env['RUNNER_TOOL_CACHE'] || '';
   assert.ok(cacheDirectory, 'Expected RUNNER_TOOL_CACHE to be defined');
   return cacheDirectory;
+}
+
+/**
+ * Gets tool cache version from specified swift tag.
+ *
+ * @param versionSpec   the tag of tool
+ * @returns             resolved tool cache version
+ */
+function _getCacheVersion(versionSpec: string) {
+  if (re.SWIFT_RELEASE.test(versionSpec)) {
+    versionSpec = versionSpec.replace(re.SWIFT_RELEASE, '$1');
+    return semver.coerce(versionSpec)?.version || '';
+  } else if (
+    /^swift-(\d+\.\d+(\.\d+)?)-DEVELOPMENT-SNAPSHOT-(\d+-\d+-\d+)-a/.test(
+      versionSpec
+    )
+  ) {
+    //
+    return versionSpec
+      .replace(
+        /^swift-(\d+\.\d+(\.\d+)?)-DEVELOPMENT-SNAPSHOT-(\d+-\d+-\d+)-a/,
+        '$1+$3'
+      )
+      .replace(/-/g, '');
+  } else if (/^swift-DEVELOPMENT-SNAPSHOT-(.+)-a$/.test(versionSpec)) {
+    return (
+      'main+' +
+      versionSpec
+        .replace(/^swift-DEVELOPMENT-SNAPSHOT-(.+)-a$/, '$1')
+        .replace(/-/g, '')
+    );
+  } else {
+    throw new Error('versionSpec parameter is invalid');
+  }
 }
