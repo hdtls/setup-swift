@@ -5,7 +5,6 @@ import * as path from 'path';
 import fs from 'fs';
 import os from 'os';
 import * as installer from '../src/installer';
-import * as toolchains from '../src/toolchains';
 
 const TOOLCHAINS = 'org.swift.580202303301a';
 const contents = `<?xml version="1.0" encoding="UTF-8"?>
@@ -50,15 +49,12 @@ const contents = `<?xml version="1.0" encoding="UTF-8"?>
 `;
 
 describe('installer', () => {
-  let inputs: {};
-  let inputSpy: jest.SpyInstance;
   let stdoutSpy: jest.SpyInstance;
   let coreInfoSpy: jest.SpyInstance;
   let coreDebugSpy: jest.SpyInstance;
-  let getExecOutputSpy: jest.SpyInstance;
   let homedirSpy: jest.SpyInstance;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     process.env['GITHUB_PATH'] = ''; // Stub out ENV file functionality so we can verify it writes to standard out
     process.env['GITHUB_OUTPUT'] = ''; // Stub out ENV file functionality so we can verify it writes to standard out
 
@@ -68,17 +64,33 @@ describe('installer', () => {
     stdoutSpy = jest.spyOn(process.stdout, 'write');
     coreInfoSpy = jest.spyOn(core, 'info');
     coreDebugSpy = jest.spyOn(core, 'debug');
-
-    getExecOutputSpy = jest.spyOn(exec, 'getExecOutput');
-
-    await io.mkdirP(path.join(__dirname, 'Toolchains'));
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     jest.resetAllMocks();
     jest.clearAllMocks();
     jest.restoreAllMocks();
-    await io.rmRF(path.join(__dirname, 'Toolchains'));
+  });
+
+  it('install on unsupported platform', async () => {
+    const manifest = {
+      version: 'swift-5.8-RELEASE',
+      stable: true,
+      release_url: '',
+      files: [
+        {
+          filename: '',
+          platform: 'android',
+          download_url: '',
+          arch: 'arm64',
+          platform_version: undefined
+        }
+      ]
+    };
+
+    await expect(installer.install(manifest)).rejects.toThrow(
+      `Installing Swift on android is not supported yet`
+    );
   });
 
   it.each(['ubuntu', 'centos', 'amazonlinux'])(
