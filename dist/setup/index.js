@@ -6617,10 +6617,8 @@ function find(manifest, arch = os.arch()) {
                         toolPaths = toolPaths
                             .filter(toolPath => {
                             try {
-                                const stats = fs.lstatSync(toolPath);
                                 const commandLine = path.join(toolPath, '/usr/bin/swift');
-                                const exsits = fs.existsSync(commandLine);
-                                return !stats.isSymbolicLink() && exsits;
+                                return fs.existsSync(commandLine);
                             }
                             catch (error) {
                                 return false;
@@ -6648,12 +6646,15 @@ function find(manifest, arch = os.arch()) {
                 core.debug(`Checking installed tool in ${toolPath}`);
                 const commandLine = path.join(toolPath, 'swift');
                 const options = { silent: true };
-                const { stdout } = yield exec.getExecOutput(commandLine, ['--version'], options);
-                if (utils.extractVerFromLogMessage(stdout) ==
-                    manifest.version.replace(re_1.re[re_1.t.SWIFTRELEASE], '$1')) {
-                    core.debug(`Found tool in ${toolPath} ${manifest.version} ${arch}`);
-                    return toolPath;
+                try {
+                    const { stdout } = yield exec.getExecOutput(commandLine, ['--version'], options);
+                    if (utils.extractVerFromLogMessage(stdout) ==
+                        manifest.version.replace(re_1.re[re_1.t.SWIFTRELEASE], '$1')) {
+                        core.debug(`Found tool in ${toolPath} ${manifest.version} ${arch}`);
+                        return toolPath;
+                    }
                 }
+                catch (error) { }
                 core.debug('Not found');
             }
         }

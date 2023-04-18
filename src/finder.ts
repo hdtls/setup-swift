@@ -72,10 +72,8 @@ export async function find(
           toolPaths = toolPaths
             .filter(toolPath => {
               try {
-                const stats = fs.lstatSync(toolPath);
                 const commandLine = path.join(toolPath, '/usr/bin/swift');
-                const exsits = fs.existsSync(commandLine);
-                return !stats.isSymbolicLink() && exsits;
+                return fs.existsSync(commandLine);
               } catch (error) {
                 return false;
               }
@@ -101,19 +99,21 @@ export async function find(
       core.debug(`Checking installed tool in ${toolPath}`);
       const commandLine = path.join(toolPath, 'swift');
       const options: exec.ExecOptions = { silent: true };
-      const { stdout } = await exec.getExecOutput(
-        commandLine,
-        ['--version'],
-        options
-      );
+      try {
+        const { stdout } = await exec.getExecOutput(
+          commandLine,
+          ['--version'],
+          options
+        );
 
-      if (
-        utils.extractVerFromLogMessage(stdout) ==
-        manifest.version.replace(re[t.SWIFTRELEASE], '$1')
-      ) {
-        core.debug(`Found tool in ${toolPath} ${manifest.version} ${arch}`);
-        return toolPath;
-      }
+        if (
+          utils.extractVerFromLogMessage(stdout) ==
+          manifest.version.replace(re[t.SWIFTRELEASE], '$1')
+        ) {
+          core.debug(`Found tool in ${toolPath} ${manifest.version} ${arch}`);
+          return toolPath;
+        }
+      } catch (error) {}
       core.debug('Not found');
     }
   }
