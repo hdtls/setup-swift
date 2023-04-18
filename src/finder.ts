@@ -59,7 +59,7 @@ export async function find(
           toolPaths.push(toolchains.getXcodeDefaultToolchain());
 
           toolPaths = toolPaths
-            .filter(async toolPath => {
+            .filter(toolPath => {
               try {
                 const stats = fs.lstatSync(toolPath);
                 const commandLine = path.join(toolPath, '/usr/bin/swift');

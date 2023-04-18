@@ -6608,7 +6608,7 @@ function find(manifest, arch = os.arch()) {
                         catch (error) { }
                         toolPaths.push(toolchains.getXcodeDefaultToolchain());
                         toolPaths = toolPaths
-                            .filter((toolPath) => __awaiter(this, void 0, void 0, function* () {
+                            .filter(toolPath => {
                             try {
                                 const stats = fs.lstatSync(toolPath);
                                 const commandLine = path.join(toolPath, '/usr/bin/swift');
@@ -6618,7 +6618,7 @@ function find(manifest, arch = os.arch()) {
                             catch (error) {
                                 return false;
                             }
-                        }))
+                        })
                             .map(toolPath => path.join(toolPath, '/usr/bin'));
                     }
                     catch (error) { }
