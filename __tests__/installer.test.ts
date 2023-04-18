@@ -55,6 +55,7 @@ describe('installer', () => {
   let homedirSpy: jest.SpyInstance;
 
   beforeEach(() => {
+    console.log('::stop-commands::stoptoken'); // Disable executing of runner commands when running tests in actions
     process.env['GITHUB_PATH'] = ''; // Stub out ENV file functionality so we can verify it writes to standard out
     process.env['GITHUB_OUTPUT'] = ''; // Stub out ENV file functionality so we can verify it writes to standard out
 
@@ -70,6 +71,10 @@ describe('installer', () => {
     jest.resetAllMocks();
     jest.clearAllMocks();
     jest.restoreAllMocks();
+  });
+
+  afterAll(() => {
+    console.log('::stoptoken::'); // Re-enable executing of runner commands when running tests in actions
   });
 
   it('install on unsupported platform', async () => {
