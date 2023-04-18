@@ -38,10 +38,10 @@ export async function find(
         try {
           try {
             toolPaths = fs
-              .readdirSync('/Library/Developer/Toolchains')
+              .readdirSync(toolchains.getSystemToolchainsDirectory())
               .filter(toolchain => toolchain.endsWith('.xctoolchain'))
               .map(toolchain =>
-                path.join('/Library/Developer/Toolchains', toolchain)
+                path.join(toolchains.getSystemToolchainsDirectory(), toolchain)
               )
               .concat(toolPaths);
           } catch (error) {}
@@ -56,7 +56,18 @@ export async function find(
               .concat(toolPaths);
           } catch (error) {}
 
-          toolPaths.push(toolchains.getXcodeDefaultToolchain());
+          try {
+            toolPaths = fs
+              .readdirSync(toolchains.getXcodeDefaultToolchainsDirectory())
+              .filter(toolchain => toolchain.endsWith('.xctoolchain'))
+              .map(toolchain =>
+                path.join(
+                  toolchains.getXcodeDefaultToolchainsDirectory(),
+                  toolchain
+                )
+              )
+              .concat(toolPaths);
+          } catch (error) {}
 
           toolPaths = toolPaths
             .filter(toolPath => {

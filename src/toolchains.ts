@@ -26,6 +26,10 @@ export function parseBundleIDFromDirectory(at: string): string {
   );
 }
 
+export function getSystemToolchainsDirectory(): string {
+  return '/Library/Developer/Toolchains';
+}
+
 export function getToolchainsDirectory(): string {
   return path.join(os.homedir(), '/Library/Developer/Toolchains');
 }
@@ -36,13 +40,16 @@ export function getToolchainsDirectory(): string {
  * @param named toolchain name
  * @returns path for toolchain
  */
-export function getToolchain(named: string): string {
-  return path.join(getToolchainsDirectory(), `${named}.xctoolchain`);
+export function getToolchain(
+  named: string,
+  directory: string = getToolchainsDirectory()
+): string {
+  return path.join(directory, `${named}.xctoolchain`);
 }
 
 /**
- * Gets the Xcode default toolchain path
+ * Gets the Xcode default toolchain directory
  */
-export function getXcodeDefaultToolchain(): string {
-  return '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain';
+export function getXcodeDefaultToolchainsDirectory(): string {
+  return '/Applications/Xcode.app/Contents/Developer/Toolchains';
 }

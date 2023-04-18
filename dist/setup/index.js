@@ -6592,9 +6592,9 @@ function find(manifest, arch = os.arch()) {
                     try {
                         try {
                             toolPaths = fs
-                                .readdirSync('/Library/Developer/Toolchains')
+                                .readdirSync(toolchains.getSystemToolchainsDirectory())
                                 .filter(toolchain => toolchain.endsWith('.xctoolchain'))
-                                .map(toolchain => path.join('/Library/Developer/Toolchains', toolchain))
+                                .map(toolchain => path.join(toolchains.getSystemToolchainsDirectory(), toolchain))
                                 .concat(toolPaths);
                         }
                         catch (error) { }
@@ -6606,7 +6606,14 @@ function find(manifest, arch = os.arch()) {
                                 .concat(toolPaths);
                         }
                         catch (error) { }
-                        toolPaths.push(toolchains.getXcodeDefaultToolchain());
+                        try {
+                            toolPaths = fs
+                                .readdirSync(toolchains.getXcodeDefaultToolchainsDirectory())
+                                .filter(toolchain => toolchain.endsWith('.xctoolchain'))
+                                .map(toolchain => path.join(toolchains.getXcodeDefaultToolchainsDirectory(), toolchain))
+                                .concat(toolPaths);
+                        }
+                        catch (error) { }
                         toolPaths = toolPaths
                             .filter(toolPath => {
                             try {
@@ -6843,8 +6850,8 @@ function exportVariables(manifest, toolPath) {
                 //   /Users/runner/Library/Developer/Toolchains
                 //   /Applications/Xcode.app/Contents/Developer/Toolchains
                 // are not maintained by setup-swift.
-                if (!toolPath.startsWith(toolchains.getXcodeDefaultToolchain()) &&
-                    !toolPath.startsWith('/Library/Developer/Toolchains') &&
+                if (!toolPath.startsWith(toolchains.getXcodeDefaultToolchainsDirectory()) &&
+                    !toolPath.startsWith(toolchains.getSystemToolchainsDirectory()) &&
                     !toolPath.startsWith(toolchains.getToolchainsDirectory())) {
                     if (!fs.existsSync(toolchains.getToolchainsDirectory())) {
                         yield io.mkdirP(toolchains.getToolchainsDirectory());
@@ -7426,7 +7433,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getXcodeDefaultToolchain = exports.getToolchain = exports.getToolchainsDirectory = exports.parseBundleIDFromDirectory = void 0;
+exports.getXcodeDefaultToolchainsDirectory = exports.getToolchain = exports.getToolchainsDirectory = exports.getSystemToolchainsDirectory = exports.parseBundleIDFromDirectory = void 0;
 const fs = __importStar(__nccwpck_require__(7147));
 const os = __importStar(__nccwpck_require__(2037));
 const path = __importStar(__nccwpck_require__(1017));
@@ -7450,6 +7457,10 @@ function parseBundleIDFromDirectory(at) {
         '');
 }
 exports.parseBundleIDFromDirectory = parseBundleIDFromDirectory;
+function getSystemToolchainsDirectory() {
+    return '/Library/Developer/Toolchains';
+}
+exports.getSystemToolchainsDirectory = getSystemToolchainsDirectory;
 function getToolchainsDirectory() {
     return path.join(os.homedir(), '/Library/Developer/Toolchains');
 }
@@ -7460,17 +7471,17 @@ exports.getToolchainsDirectory = getToolchainsDirectory;
  * @param named toolchain name
  * @returns path for toolchain
  */
-function getToolchain(named) {
-    return path.join(getToolchainsDirectory(), `${named}.xctoolchain`);
+function getToolchain(named, directory = getToolchainsDirectory()) {
+    return path.join(directory, `${named}.xctoolchain`);
 }
 exports.getToolchain = getToolchain;
 /**
- * Gets the Xcode default toolchain path
+ * Gets the Xcode default toolchain directory
  */
-function getXcodeDefaultToolchain() {
-    return '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain';
+function getXcodeDefaultToolchainsDirectory() {
+    return '/Applications/Xcode.app/Contents/Developer/Toolchains';
 }
-exports.getXcodeDefaultToolchain = getXcodeDefaultToolchain;
+exports.getXcodeDefaultToolchainsDirectory = getXcodeDefaultToolchainsDirectory;
 
 
 /***/ }),

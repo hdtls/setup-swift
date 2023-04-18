@@ -82,8 +82,8 @@ export async function exportVariables(
       //   /Applications/Xcode.app/Contents/Developer/Toolchains
       // are not maintained by setup-swift.
       if (
-        !toolPath.startsWith(toolchains.getXcodeDefaultToolchain()) &&
-        !toolPath.startsWith('/Library/Developer/Toolchains') &&
+        !toolPath.startsWith(toolchains.getXcodeDefaultToolchainsDirectory()) &&
+        !toolPath.startsWith(toolchains.getSystemToolchainsDirectory()) &&
         !toolPath.startsWith(toolchains.getToolchainsDirectory())
       ) {
         if (!fs.existsSync(toolchains.getToolchainsDirectory())) {

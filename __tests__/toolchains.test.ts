@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as toolchains from '../src/toolchains';
 
-const workDir = path.join(__dirname, 'Toolchains');
+const workDir = path.join(__dirname, 'TEMP');
 
 describe('toolchains', () => {
   beforeEach(async () => {
@@ -42,7 +42,7 @@ describe('toolchains', () => {
 		<string>swift</string>
 	</array>
 	<key>CFBundleIdentifier</key>
-	<string>org.swift.580202303301a</string>
+	<string>${expected}</string>
 	<key>CompatibilityVersion</key>
 	<integer>2</integer>
 	<key>CompatibilityVersionDisplayString</key>
