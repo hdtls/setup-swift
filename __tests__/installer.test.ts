@@ -56,6 +56,7 @@ describe('installer', () => {
 
   beforeEach(() => {
     console.log('::stop-commands::stoptoken'); // Disable executing of runner commands when running tests in actions
+    process.env['GITHUB_ENV'] = ''; // Stub out ENV file functionality so we can verify it writes to standard out
     process.env['GITHUB_PATH'] = ''; // Stub out ENV file functionality so we can verify it writes to standard out
     process.env['GITHUB_OUTPUT'] = ''; // Stub out ENV file functionality so we can verify it writes to standard out
 
@@ -274,7 +275,7 @@ Target: x86_64-apple-macosx12.0`;
     expect(iormRFSpy).toBeCalledTimes(0);
   });
 
-  it('export variables should rmeove exists toolchains', async () => {
+  it('export variables should remove exists toolchains', async () => {
     jest.spyOn(fs, 'readFileSync').mockReturnValue(contents);
     jest
       .spyOn(fs, 'existsSync')
