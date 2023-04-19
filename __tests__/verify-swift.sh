@@ -44,7 +44,7 @@ else
   exit 1
 fi
 
-if [[ "$OSTYPE" == "darwin"* ]]; then
+if [[ "$OSTYPE" == "darwin"* ]] && command -v xcrun &>/dev/null; then
   parse_version_from_log "$(xcrun swift --version)"
   if [[ $swift_version =~ $expected ]]; then
     echo "Assert RegEx Match 'xcrun swift --version ($swift_version)' and $1 ("$expected") success"

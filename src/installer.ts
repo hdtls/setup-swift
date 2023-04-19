@@ -110,8 +110,8 @@ export async function exportVariables(
       core.setOutput('TOOLCHAINS', TOOLCHAINS);
 
       toolPath = path.join(toolPath, '/usr/bin');
-      commandLine = 'xcrun';
-      args = ['swift', '--version'];
+      commandLine = path.join(toolPath, 'swift');
+      args = ['--version'];
       break;
     case 'ubuntu':
     case 'centos':
