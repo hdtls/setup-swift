@@ -6784,15 +6784,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.exportVariables = exports.install = void 0;
-const core = __importStar(__nccwpck_require__(2186));
-const io = __importStar(__nccwpck_require__(7436));
-const exec = __importStar(__nccwpck_require__(1514));
-const fs = __importStar(__nccwpck_require__(7147));
-const path = __importStar(__nccwpck_require__(1017));
-const gpg = __importStar(__nccwpck_require__(3759));
-const tc = __importStar(__nccwpck_require__(9456));
-const utils = __importStar(__nccwpck_require__(1314));
-const toolchains = __importStar(__nccwpck_require__(9322));
+const amazonlinux = __importStar(__nccwpck_require__(6201));
+const centos = __importStar(__nccwpck_require__(4873));
+const darwin = __importStar(__nccwpck_require__(6747));
+const ubuntu = __importStar(__nccwpck_require__(808));
 /**
  * Download and install tools define in manifest files
  *
@@ -6800,33 +6795,23 @@ const toolchains = __importStar(__nccwpck_require__(9322));
  */
 function install(manifest) {
     return __awaiter(this, void 0, void 0, function* () {
-        let archivePath = '';
-        let extractPath = '';
         const release = manifest.files[0];
         switch (release.platform) {
+            case 'amazonlinux':
+                yield amazonlinux.install(manifest);
+                break;
+            case 'centos':
+                yield centos.install(manifest);
+                break;
             case 'darwin':
-                archivePath = yield tc.downloadTool(release.download_url);
-                archivePath = yield tc.extractXar(archivePath);
-                extractPath = yield tc.extractTar(path.join(archivePath, `${manifest.version}-osx-package.pkg`, 'Payload'));
+                yield darwin.install(manifest);
                 break;
             case 'ubuntu':
-            case 'centos':
-            case 'amazonlinux':
-                const signatureUrl = release.download_url + '.sig';
-                const [targz, signature] = yield Promise.all([
-                    tc.downloadTool(release.download_url),
-                    tc.downloadTool(signatureUrl)
-                ]);
-                archivePath = targz;
-                yield gpg.importKeys();
-                yield gpg.verify(signature, archivePath);
-                extractPath = yield tc.extractTar(archivePath);
-                extractPath = path.join(extractPath, release.filename.replace('.tar.gz', ''));
+                yield ubuntu.install(manifest);
                 break;
             default:
                 throw new Error(`Installing Swift on ${release.platform} is not supported yet`);
         }
-        yield tc.cacheDir(extractPath, 'swift', manifest.version);
     });
 }
 exports.install = install;
@@ -6840,50 +6825,264 @@ exports.install = install;
  */
 function exportVariables(manifest, toolPath) {
     return __awaiter(this, void 0, void 0, function* () {
-        let commandLine = '';
-        let args;
-        switch (manifest.files[0].platform) {
+        const release = manifest.files[0];
+        switch (release.platform) {
+            case 'amazonlinux':
+                yield amazonlinux.exportVariables(manifest, toolPath);
+                break;
+            case 'centos':
+                yield centos.exportVariables(manifest, toolPath);
+                break;
             case 'darwin':
-                // Remove /usr/bin
-                toolPath = toolPath.split('/').slice(0, -2).join('/');
-                // Toolchains located in:
-                //   /Library/Developer/Toolchains
-                //   /Users/runner/Library/Developer/Toolchains
-                //   /Applications/Xcode.app/Contents/Developer/Toolchains
-                // are not maintained by setup-swift.
-                if (!toolPath.startsWith(toolchains.getXcodeDefaultToolchainsDirectory()) &&
-                    !toolPath.startsWith(toolchains.getSystemToolchainsDirectory()) &&
-                    !toolPath.startsWith(toolchains.getToolchainsDirectory())) {
-                    if (!fs.existsSync(toolchains.getToolchainsDirectory())) {
-                        yield io.mkdirP(toolchains.getToolchainsDirectory());
-                    }
-                    const toolchain = toolchains.getToolchain(manifest.version);
-                    if (fs.existsSync(toolchain)) {
-                        yield io.rmRF(toolchain);
-                    }
-                    // Remove swift-latest.xctoolchain
-                    if (fs.existsSync(toolchains.getToolchain('swift-latest'))) {
-                        yield io.rmRF(toolchains.getToolchain('swift-latest'));
-                    }
-                    fs.symlinkSync(toolPath, toolchain);
-                }
-                const TOOLCHAINS = toolchains.parseBundleIDFromDirectory(toolPath);
-                core.debug(`export TOOLCHAINS environment variable: ${TOOLCHAINS}`);
-                core.exportVariable('TOOLCHAINS', TOOLCHAINS);
-                core.setOutput('TOOLCHAINS', TOOLCHAINS);
-                toolPath = path.join(toolPath, '/usr/bin');
-                commandLine = path.join(toolPath, 'swift');
-                args = ['--version'];
+                yield darwin.exportVariables(manifest, toolPath);
                 break;
             case 'ubuntu':
-            case 'centos':
-            case 'amazonlinux':
-                commandLine = path.join(toolPath, 'swift');
-                args = ['--version'];
+                yield ubuntu.exportVariables(manifest, toolPath);
                 break;
             default:
-                throw new Error(`Installing Swift on ${manifest.files[0].platform} is not supported yet`);
+                throw new Error(`Installing Swift on ${release.platform} is not supported yet`);
         }
+    });
+}
+exports.exportVariables = exportVariables;
+
+
+/***/ }),
+
+/***/ 6201:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.exportVariables = exports.install = void 0;
+const defaults = __importStar(__nccwpck_require__(5206));
+/**
+ * Download and install tools define in manifest files
+ *
+ * @param manifest informations of tool
+ */
+function install(manifest) {
+    return __awaiter(this, void 0, void 0, function* () {
+        yield defaults.install(manifest);
+    });
+}
+exports.install = install;
+/**
+ * Export path or any other relative variables
+ *
+ * @param manifest manifest for installed tool
+ * @param toolPath installed tool path
+ */
+function exportVariables(manifest, toolPath) {
+    return __awaiter(this, void 0, void 0, function* () {
+        yield defaults.exportVariables(manifest, toolPath);
+    });
+}
+exports.exportVariables = exportVariables;
+
+
+/***/ }),
+
+/***/ 4873:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.exportVariables = exports.install = void 0;
+const defaults = __importStar(__nccwpck_require__(5206));
+/**
+ * Download and install tools define in manifest files
+ *
+ * @param manifest informations of tool
+ */
+function install(manifest) {
+    return __awaiter(this, void 0, void 0, function* () {
+        yield defaults.install(manifest);
+    });
+}
+exports.install = install;
+/**
+ * Export path or any other relative variables
+ *
+ * @param manifest manifest for installed tool
+ * @param toolPath installed tool path
+ */
+function exportVariables(manifest, toolPath) {
+    return __awaiter(this, void 0, void 0, function* () {
+        yield defaults.exportVariables(manifest, toolPath);
+    });
+}
+exports.exportVariables = exportVariables;
+
+
+/***/ }),
+
+/***/ 6747:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.exportVariables = exports.install = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const exec = __importStar(__nccwpck_require__(1514));
+const io = __importStar(__nccwpck_require__(7436));
+const fs = __importStar(__nccwpck_require__(7147));
+const path = __importStar(__nccwpck_require__(1017));
+const tc = __importStar(__nccwpck_require__(9456));
+const toolchains = __importStar(__nccwpck_require__(9322));
+const utils = __importStar(__nccwpck_require__(1314));
+/**
+ * Download and install tools define in manifest files
+ *
+ * @param manifest informations of tool
+ */
+function install(manifest) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const release = manifest.files[0];
+        let archivePath = yield tc.downloadTool(release.download_url);
+        archivePath = yield tc.extractXar(archivePath);
+        const extractPath = yield tc.extractTar(path.join(archivePath, `${manifest.version}-osx-package.pkg`, 'Payload'));
+        yield tc.cacheDir(extractPath, 'swift', manifest.version);
+    });
+}
+exports.install = install;
+/**
+ * Export path or any other relative variables
+ *
+ * @param manifest manifest for installed tool
+ * @param toolPath installed tool path
+ */
+function exportVariables(manifest, toolPath) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // Remove /usr/bin
+        toolPath = toolPath.split('/').slice(0, -2).join('/');
+        // Toolchains located in:
+        //   /Library/Developer/Toolchains
+        //   /Users/runner/Library/Developer/Toolchains
+        //   /Applications/Xcode.app/Contents/Developer/Toolchains
+        // are not maintained by setup-swift.
+        if (!toolPath.startsWith(toolchains.getXcodeDefaultToolchainsDirectory()) &&
+            !toolPath.startsWith(toolchains.getSystemToolchainsDirectory()) &&
+            !toolPath.startsWith(toolchains.getToolchainsDirectory())) {
+            if (!fs.existsSync(toolchains.getToolchainsDirectory())) {
+                yield io.mkdirP(toolchains.getToolchainsDirectory());
+            }
+            const toolchain = toolchains.getToolchain(manifest.version);
+            if (fs.existsSync(toolchain)) {
+                yield io.rmRF(toolchain);
+            }
+            // Remove swift-latest.xctoolchain
+            if (fs.existsSync(toolchains.getToolchain('swift-latest'))) {
+                yield io.rmRF(toolchains.getToolchain('swift-latest'));
+            }
+            fs.symlinkSync(toolPath, toolchain);
+        }
+        const TOOLCHAINS = toolchains.parseBundleIDFromDirectory(toolPath);
+        core.debug(`export TOOLCHAINS environment variable: ${TOOLCHAINS}`);
+        core.exportVariable('TOOLCHAINS', TOOLCHAINS);
+        core.setOutput('TOOLCHAINS', TOOLCHAINS);
+        toolPath = path.join(toolPath, '/usr/bin');
+        const commandLine = path.join(toolPath, 'swift');
+        const args = ['--version'];
         const options = { silent: true };
         const { stdout } = yield exec.getExecOutput(commandLine, args, options);
         const swiftVersion = utils.extractVerFromLogMessage(stdout);
@@ -6891,6 +7090,165 @@ function exportVariables(manifest, toolPath) {
         core.setOutput('swift-path', path.join(toolPath, 'swift'));
         core.setOutput('swift-version', swiftVersion);
         core.info(`Successfully set up Swift ${swiftVersion} (${manifest.version})`);
+    });
+}
+exports.exportVariables = exportVariables;
+
+
+/***/ }),
+
+/***/ 5206:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.exportVariables = exports.install = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const exec = __importStar(__nccwpck_require__(1514));
+const path = __importStar(__nccwpck_require__(1017));
+const gpg = __importStar(__nccwpck_require__(3759));
+const tc = __importStar(__nccwpck_require__(9456));
+const utils = __importStar(__nccwpck_require__(1314));
+/**
+ * Download and install tools define in manifest files
+ *
+ * @param manifest informations of tool
+ */
+function install(manifest) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const release = manifest.files[0];
+        const signatureUrl = release.download_url + '.sig';
+        const [archivePath, signature] = yield Promise.all([
+            tc.downloadTool(release.download_url),
+            tc.downloadTool(signatureUrl)
+        ]);
+        yield gpg.importKeys();
+        yield gpg.verify(signature, archivePath);
+        let extractPath = yield tc.extractTar(archivePath);
+        extractPath = path.join(extractPath, release.filename.replace('.tar.gz', ''));
+        yield tc.cacheDir(extractPath, 'swift', manifest.version);
+    });
+}
+exports.install = install;
+/**
+ * Export path or any other relative variables
+ *
+ * @param manifest manifest for installed tool
+ * @param toolPath installed tool path
+ */
+function exportVariables(manifest, toolPath) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let commandLine = '';
+        let args;
+        commandLine = path.join(toolPath, 'swift');
+        args = ['--version'];
+        const options = { silent: true };
+        const { stdout } = yield exec.getExecOutput(commandLine, args, options);
+        const swiftVersion = utils.extractVerFromLogMessage(stdout);
+        core.addPath(toolPath);
+        core.setOutput('swift-path', path.join(toolPath, 'swift'));
+        core.setOutput('swift-version', swiftVersion);
+        core.info(`Successfully set up Swift ${swiftVersion} (${manifest.version})`);
+    });
+}
+exports.exportVariables = exportVariables;
+
+
+/***/ }),
+
+/***/ 808:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.exportVariables = exports.install = void 0;
+const defaults = __importStar(__nccwpck_require__(5206));
+/**
+ * Download and install tools define in manifest files
+ *
+ * @param manifest informations of tool
+ */
+function install(manifest) {
+    return __awaiter(this, void 0, void 0, function* () {
+        yield defaults.install(manifest);
+    });
+}
+exports.install = install;
+/**
+ * Export path or any other relative variables
+ *
+ * @param manifest manifest for installed tool
+ * @param toolPath installed tool path
+ */
+function exportVariables(manifest, toolPath) {
+    return __awaiter(this, void 0, void 0, function* () {
+        yield defaults.exportVariables(manifest, toolPath);
     });
 }
 exports.exportVariables = exportVariables;

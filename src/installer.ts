@@ -1,12 +1,8 @@
-import * as core from '@actions/core';
-import * as io from '@actions/io';
-import * as exec from '@actions/exec';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as gpg from './gpg';
 import * as tc from './tool-cache';
-import * as utils from './utils';
-import * as toolchains from './toolchains';
+import * as amazonlinux from './installers/amazonlinux';
+import * as centos from './installers/centos';
+import * as darwin from './installers/darwin';
+import * as ubuntu from './installers/ubuntu';
 
 /**
  * Download and install tools define in manifest files
@@ -14,46 +10,26 @@ import * as toolchains from './toolchains';
  * @param manifest informations of tool
  */
 export async function install(manifest: tc.IToolRelease) {
-  let archivePath = '';
-  let extractPath = '';
-
   const release = manifest.files[0];
 
   switch (release.platform) {
+    case 'amazonlinux':
+      await amazonlinux.install(manifest);
+      break;
+    case 'centos':
+      await centos.install(manifest);
+      break;
     case 'darwin':
-      archivePath = await tc.downloadTool(release.download_url);
-      archivePath = await tc.extractXar(archivePath);
-      extractPath = await tc.extractTar(
-        path.join(archivePath, `${manifest.version}-osx-package.pkg`, 'Payload')
-      );
+      await darwin.install(manifest);
       break;
     case 'ubuntu':
-    case 'centos':
-    case 'amazonlinux':
-      const signatureUrl = release.download_url + '.sig';
-      const [targz, signature] = await Promise.all([
-        tc.downloadTool(release.download_url),
-        tc.downloadTool(signatureUrl)
-      ]);
-
-      archivePath = targz;
-
-      await gpg.importKeys();
-      await gpg.verify(signature, archivePath);
-
-      extractPath = await tc.extractTar(archivePath);
-      extractPath = path.join(
-        extractPath,
-        release.filename.replace('.tar.gz', '')
-      );
+      await ubuntu.install(manifest);
       break;
     default:
       throw new Error(
         `Installing Swift on ${release.platform} is not supported yet`
       );
   }
-
-  await tc.cacheDir(extractPath, 'swift', manifest.version);
 }
 
 /**
@@ -68,70 +44,24 @@ export async function exportVariables(
   manifest: tc.IToolRelease,
   toolPath: string
 ) {
-  let commandLine = '';
-  let args: string[] | undefined;
+  const release = manifest.files[0];
 
-  switch (manifest.files[0].platform) {
+  switch (release.platform) {
+    case 'amazonlinux':
+      await amazonlinux.exportVariables(manifest, toolPath);
+      break;
+    case 'centos':
+      await centos.exportVariables(manifest, toolPath);
+      break;
     case 'darwin':
-      // Remove /usr/bin
-      toolPath = toolPath.split('/').slice(0, -2).join('/');
-
-      // Toolchains located in:
-      //   /Library/Developer/Toolchains
-      //   /Users/runner/Library/Developer/Toolchains
-      //   /Applications/Xcode.app/Contents/Developer/Toolchains
-      // are not maintained by setup-swift.
-      if (
-        !toolPath.startsWith(toolchains.getXcodeDefaultToolchainsDirectory()) &&
-        !toolPath.startsWith(toolchains.getSystemToolchainsDirectory()) &&
-        !toolPath.startsWith(toolchains.getToolchainsDirectory())
-      ) {
-        if (!fs.existsSync(toolchains.getToolchainsDirectory())) {
-          await io.mkdirP(toolchains.getToolchainsDirectory());
-        }
-
-        const toolchain = toolchains.getToolchain(manifest.version);
-        if (fs.existsSync(toolchain)) {
-          await io.rmRF(toolchain);
-        }
-
-        // Remove swift-latest.xctoolchain
-        if (fs.existsSync(toolchains.getToolchain('swift-latest'))) {
-          await io.rmRF(toolchains.getToolchain('swift-latest'));
-        }
-
-        fs.symlinkSync(toolPath, toolchain);
-      }
-
-      const TOOLCHAINS = toolchains.parseBundleIDFromDirectory(toolPath);
-
-      core.debug(`export TOOLCHAINS environment variable: ${TOOLCHAINS}`);
-      core.exportVariable('TOOLCHAINS', TOOLCHAINS);
-      core.setOutput('TOOLCHAINS', TOOLCHAINS);
-
-      toolPath = path.join(toolPath, '/usr/bin');
-      commandLine = path.join(toolPath, 'swift');
-      args = ['--version'];
+      await darwin.exportVariables(manifest, toolPath);
       break;
     case 'ubuntu':
-    case 'centos':
-    case 'amazonlinux':
-      commandLine = path.join(toolPath, 'swift');
-      args = ['--version'];
+      await ubuntu.exportVariables(manifest, toolPath);
       break;
     default:
       throw new Error(
-        `Installing Swift on ${manifest.files[0].platform} is not supported yet`
+        `Installing Swift on ${release.platform} is not supported yet`
       );
   }
-
-  const options: exec.ExecOptions = { silent: true };
-  const { stdout } = await exec.getExecOutput(commandLine, args, options);
-
-  const swiftVersion = utils.extractVerFromLogMessage(stdout);
-
-  core.addPath(toolPath);
-  core.setOutput('swift-path', path.join(toolPath, 'swift'));
-  core.setOutput('swift-version', swiftVersion);
-  core.info(`Successfully set up Swift ${swiftVersion} (${manifest.version})`);
 }
