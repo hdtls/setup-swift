@@ -26,10 +26,20 @@ export function parseBundleIDFromDirectory(at: string): string {
   );
 }
 
+/**
+ * Gets system toolchains directory
+ *
+ * @returns path for system developer toolchains directory
+ */
 export function getSystemToolchainsDirectory(): string {
   return '/Library/Developer/Toolchains';
 }
 
+/**
+ * Gets user developer toolchains directory
+ *
+ * @returns path for user developer toolchains directory
+ */
 export function getToolchainsDirectory(): string {
   return path.join(os.homedir(), '/Library/Developer/Toolchains');
 }
@@ -38,7 +48,7 @@ export function getToolchainsDirectory(): string {
  * Gets xctoolchain path with toolchain name
  *
  * @param named toolchain name
- * @returns path for toolchain
+ * @returns path for toolchain, defaults is /Users/[user]/Library/Developer/Toolchains
  */
 export function getToolchain(
   named: string,
