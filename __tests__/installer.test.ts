@@ -2,7 +2,7 @@ import * as core from '@actions/core';
 import * as exec from '@actions/exec';
 import * as io from '@actions/io';
 import * as path from 'path';
-import fs, { mkdirSync } from 'fs';
+import fs from 'fs';
 import os from 'os';
 import * as installer from '../src/installer';
 import { IToolRelease } from '../src/tool-cache';
@@ -141,32 +141,16 @@ describe('installer', () => {
     ).rejects.toThrow(`Installing Swift on ${platform} is not supported yet`);
   });
 
-  it('export variables for amazonlinux', async () => {
-    const platform = 'amazonlinux';
-    const manifest = _getManifest(platform);
+  it.each(['amazonlinux', 'centos', 'ubuntu'])(
+    'export variables for %s',
+    async platform => {
+      const manifest = _getManifest(platform);
 
-    await installer.exportVariables(manifest, __dirname);
+      await installer.exportVariables(manifest, __dirname);
 
-    _assertExportVariables(__dirname);
-  });
-
-  it('export variables for centos', async () => {
-    const platform = 'centos';
-    const manifest = _getManifest(platform);
-
-    await installer.exportVariables(manifest, __dirname);
-
-    _assertExportVariables(__dirname);
-  });
-
-  it('export variables for ubuntu', async () => {
-    const platform = 'ubuntu';
-    const manifest = _getManifest(platform);
-
-    await installer.exportVariables(manifest, __dirname);
-
-    _assertExportVariables(__dirname);
-  });
+      _assertExportVariables(__dirname);
+    }
+  );
 
   describe('export variables for darwin', () => {
     let existsSpy: jest.SpyInstance;

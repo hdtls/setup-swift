@@ -6888,6 +6888,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.exportVariables = exports.install = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const exec = __importStar(__nccwpck_require__(1514));
 const defaults = __importStar(__nccwpck_require__(5206));
 /**
  * Download and install tools define in manifest files
@@ -6896,6 +6898,32 @@ const defaults = __importStar(__nccwpck_require__(5206));
  */
 function install(manifest) {
     return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const args = [
+                '-y',
+                'install',
+                'binutils',
+                'gcc',
+                'git',
+                'glibc-static',
+                'gzip',
+                'libbsd',
+                'libcurl',
+                'libcurl-devel',
+                'libedit',
+                'libicu',
+                'libsqlite',
+                'libstdc++-static',
+                'libuuid',
+                'libxml2',
+                'tar',
+                'tzdata'
+            ];
+            yield exec.exec('yum', args);
+        }
+        catch (error) {
+            core.warning(error.message);
+        }
         yield defaults.install(manifest);
     });
 }
@@ -6955,6 +6983,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.exportVariables = exports.install = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const exec = __importStar(__nccwpck_require__(1514));
 const defaults = __importStar(__nccwpck_require__(5206));
 /**
  * Download and install tools define in manifest files
@@ -6963,6 +6993,35 @@ const defaults = __importStar(__nccwpck_require__(5206));
  */
 function install(manifest) {
     return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const args = [
+                '-q',
+                'install',
+                '-y',
+                'binutils',
+                'gcc',
+                'git',
+                'glibc-static',
+                'libbsd-devel',
+                'libedit',
+                'libedit-devel',
+                'libicu-devel',
+                'libstdc++-static',
+                'pkg-config',
+                'python2',
+                'sqlite'
+            ];
+            yield exec.exec('yum', args);
+            yield exec.exec('sed', [
+                '-i',
+                '-e',
+                "'s/*__block/*__libc_block/g'",
+                '/usr/include/unistd.h'
+            ]);
+        }
+        catch (error) {
+            core.warning(error.message);
+        }
         yield defaults.install(manifest);
     });
 }
@@ -7228,6 +7287,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.exportVariables = exports.install = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const exec = __importStar(__nccwpck_require__(1514));
 const defaults = __importStar(__nccwpck_require__(5206));
 /**
  * Download and install tools define in manifest files
@@ -7236,6 +7297,79 @@ const defaults = __importStar(__nccwpck_require__(5206));
  */
 function install(manifest) {
     return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let args = [];
+            switch (manifest.files[0].platform_version) {
+                case '18.04':
+                    args = [
+                        '-y',
+                        'install',
+                        'binutils',
+                        'git',
+                        'libc6-dev',
+                        'libcurl4',
+                        'libedit2',
+                        'libgcc-5-dev',
+                        'libpython2.7',
+                        'libsqlite3-0',
+                        'libstdc++-5-dev',
+                        'libxml2',
+                        'pkg-config',
+                        'tzdata',
+                        'zlib1g-dev'
+                    ];
+                    break;
+                case '20.04':
+                    args = [
+                        '-y',
+                        'install',
+                        'binutils',
+                        'git',
+                        'gnupg2',
+                        'libc6-dev',
+                        'libcurl4',
+                        'libedit2',
+                        'libgcc-9-dev',
+                        'libpython2.7',
+                        'libsqlite3-0',
+                        'libstdc++-9-dev',
+                        'libxml2',
+                        'libz3-dev',
+                        'pkg-config',
+                        'tzdata',
+                        'uuid-dev',
+                        'zlib1g-dev'
+                    ];
+                    break;
+                default:
+                    // 22.04
+                    args = [
+                        '-y',
+                        'install',
+                        'binutils',
+                        'git',
+                        'gnupg2',
+                        'libc6-dev',
+                        'libcurl4-openssl-dev',
+                        'libedit2',
+                        'libgcc-9-dev',
+                        'libpython3.8',
+                        'libsqlite3-0',
+                        'libstdc++-9-dev',
+                        'libxml2-dev',
+                        'libz3-dev',
+                        'pkg-config',
+                        'tzdata',
+                        'unzip',
+                        'zlib1g-dev'
+                    ];
+                    break;
+            }
+            yield exec.exec('apt-get', args);
+        }
+        catch (error) {
+            core.warning(error.message);
+        }
         yield defaults.install(manifest);
     });
 }
