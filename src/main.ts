@@ -1,4 +1,5 @@
 import * as core from '@actions/core';
+import * as tcr from '@actions/tool-cache';
 import os from 'os';
 import * as finder from './finder';
 import * as tc from './tool-cache';
@@ -29,10 +30,12 @@ export async function run() {
         : '10'
     );
 
+    const release = manifest.files[0];
+
     let toolPath = await finder.find(manifest, arch);
 
     if (!toolPath) {
-      await installer.install(manifest);
+      await installer.install(manifest.version, release);
       toolPath = tc.find('swift', manifest.version, arch);
       if (toolPath.length) {
         toolPath = path.join(toolPath, '/usr/bin');
@@ -52,7 +55,7 @@ export async function run() {
       );
     }
 
-    await installer.exportVariables(manifest, toolPath);
+    await installer.exportVariables(manifest.version, release, toolPath);
   } catch (err) {
     core.setFailed((err as Error).message);
   }

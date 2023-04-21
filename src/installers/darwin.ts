@@ -8,31 +8,28 @@ import * as toolchains from '../toolchains';
 import * as utils from '../utils';
 
 /**
- * Download and install tools define in manifest files
+ * Download and install tools define in release file
  *
- * @param manifest informations of tool
+ * @param tag the swift vertion tag
+ * @param release release file, contains filename platform platform_version arch and download_url
  */
-export async function install(manifest: tc.IToolRelease) {
-  const release = manifest.files[0];
+export async function install(tag: string, release: tc.IToolReleaseFile) {
   let archivePath = await tc.downloadTool(release.download_url);
   archivePath = await tc.extractXar(archivePath);
   const extractPath = await tc.extractTar(
-    path.join(archivePath, `${manifest.version}-osx-package.pkg`, 'Payload')
+    path.join(archivePath, `${release.filename}`, 'Payload')
   );
 
-  await tc.cacheDir(extractPath, 'swift', manifest.version);
+  await tc.cacheDir(extractPath, 'swift', tag);
 }
 
 /**
  * Export path or any other relative variables
  *
- * @param manifest manifest for installed tool
+ * @param tag the swift version tag
  * @param toolPath installed tool path
  */
-export async function exportVariables(
-  manifest: tc.IToolRelease,
-  toolPath: string
-) {
+export async function exportVariables(tag: string, toolPath: string) {
   // Remove /usr/bin
   toolPath = toolPath.split('/').slice(0, -2).join('/');
 
@@ -50,7 +47,7 @@ export async function exportVariables(
       await io.mkdirP(toolchains.getToolchainsDirectory());
     }
 
-    const toolchain = toolchains.getToolchain(manifest.version);
+    const toolchain = toolchains.getToolchain(tag);
     if (fs.existsSync(toolchain)) {
       await io.rmRF(toolchain);
     }
@@ -80,5 +77,5 @@ export async function exportVariables(
   core.addPath(toolPath);
   core.setOutput('swift-path', path.join(toolPath, 'swift'));
   core.setOutput('swift-version', swiftVersion);
-  core.info(`Successfully set up Swift ${swiftVersion} (${manifest.version})`);
+  core.info(`Successfully set up Swift ${swiftVersion} (${tag})`);
 }

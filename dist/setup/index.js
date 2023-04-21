@@ -6789,25 +6789,25 @@ const centos = __importStar(__nccwpck_require__(4873));
 const darwin = __importStar(__nccwpck_require__(6747));
 const ubuntu = __importStar(__nccwpck_require__(808));
 /**
- * Download and install tools define in manifest files
+ * Download and install tools define in release file
  *
- * @param manifest informations of tool
+ * @param tag the swift vertion tag
+ * @param release release file, contains filename platform platform_version arch and download_url
  */
-function install(manifest) {
+function install(tag, release) {
     return __awaiter(this, void 0, void 0, function* () {
-        const release = manifest.files[0];
         switch (release.platform) {
             case 'amazonlinux':
-                yield amazonlinux.install(manifest);
+                yield amazonlinux.install(tag, release);
                 break;
             case 'centos':
-                yield centos.install(manifest);
+                yield centos.install(tag, release);
                 break;
             case 'darwin':
-                yield darwin.install(manifest);
+                yield darwin.install(tag, release);
                 break;
             case 'ubuntu':
-                yield ubuntu.install(manifest);
+                yield ubuntu.install(tag, release);
                 break;
             default:
                 throw new Error(`Installing Swift on ${release.platform} is not supported yet`);
@@ -6818,26 +6818,24 @@ exports.install = install;
 /**
  * Export path or any other relative variables
  *
- * on macOS this also create symblink for installed toolchains
- *
- * @param manifest manifest for installed tool
+ * @param tag the swift version tag
+ * @param release release file, contains install metadatas
  * @param toolPath installed tool path
  */
-function exportVariables(manifest, toolPath) {
+function exportVariables(tag, release, toolPath) {
     return __awaiter(this, void 0, void 0, function* () {
-        const release = manifest.files[0];
         switch (release.platform) {
             case 'amazonlinux':
-                yield amazonlinux.exportVariables(manifest, toolPath);
+                yield amazonlinux.exportVariables(tag, toolPath);
                 break;
             case 'centos':
-                yield centos.exportVariables(manifest, toolPath);
+                yield centos.exportVariables(tag, toolPath);
                 break;
             case 'darwin':
-                yield darwin.exportVariables(manifest, toolPath);
+                yield darwin.exportVariables(tag, toolPath);
                 break;
             case 'ubuntu':
-                yield ubuntu.exportVariables(manifest, toolPath);
+                yield ubuntu.exportVariables(tag, toolPath);
                 break;
             default:
                 throw new Error(`Installing Swift on ${release.platform} is not supported yet`);
@@ -6892,11 +6890,12 @@ const core = __importStar(__nccwpck_require__(2186));
 const exec = __importStar(__nccwpck_require__(1514));
 const defaults = __importStar(__nccwpck_require__(5206));
 /**
- * Download and install tools define in manifest files
+ * Download and install tools define in release file
  *
- * @param manifest informations of tool
+ * @param tag the swift vertion tag
+ * @param release release file, contains filename platform platform_version arch and download_url
  */
-function install(manifest) {
+function install(tag, release) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const args = [
@@ -6924,19 +6923,19 @@ function install(manifest) {
         catch (error) {
             core.warning(error.message);
         }
-        yield defaults.install(manifest);
+        yield defaults.install(tag, release);
     });
 }
 exports.install = install;
 /**
  * Export path or any other relative variables
  *
- * @param manifest manifest for installed tool
+ * @param tag the swift version tag
  * @param toolPath installed tool path
  */
-function exportVariables(manifest, toolPath) {
+function exportVariables(tag, toolPath) {
     return __awaiter(this, void 0, void 0, function* () {
-        yield defaults.exportVariables(manifest, toolPath);
+        yield defaults.exportVariables(tag, toolPath);
     });
 }
 exports.exportVariables = exportVariables;
@@ -6987,11 +6986,12 @@ const core = __importStar(__nccwpck_require__(2186));
 const exec = __importStar(__nccwpck_require__(1514));
 const defaults = __importStar(__nccwpck_require__(5206));
 /**
- * Download and install tools define in manifest files
+ * Download and install tools define in release file
  *
- * @param manifest informations of tool
+ * @param tag the swift vertion tag
+ * @param release release file, contains filename platform platform_version arch and download_url
  */
-function install(manifest) {
+function install(tag, release) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const args = [
@@ -7022,19 +7022,19 @@ function install(manifest) {
         catch (error) {
             core.warning(error.message);
         }
-        yield defaults.install(manifest);
+        yield defaults.install(tag, release);
     });
 }
 exports.install = install;
 /**
  * Export path or any other relative variables
  *
- * @param manifest manifest for installed tool
+ * @param tag the swift version tag
  * @param toolPath installed tool path
  */
-function exportVariables(manifest, toolPath) {
+function exportVariables(tag, toolPath) {
     return __awaiter(this, void 0, void 0, function* () {
-        yield defaults.exportVariables(manifest, toolPath);
+        yield defaults.exportVariables(tag, toolPath);
     });
 }
 exports.exportVariables = exportVariables;
@@ -7090,27 +7090,27 @@ const tc = __importStar(__nccwpck_require__(9456));
 const toolchains = __importStar(__nccwpck_require__(9322));
 const utils = __importStar(__nccwpck_require__(1314));
 /**
- * Download and install tools define in manifest files
+ * Download and install tools define in release file
  *
- * @param manifest informations of tool
+ * @param tag the swift vertion tag
+ * @param release release file, contains filename platform platform_version arch and download_url
  */
-function install(manifest) {
+function install(tag, release) {
     return __awaiter(this, void 0, void 0, function* () {
-        const release = manifest.files[0];
         let archivePath = yield tc.downloadTool(release.download_url);
         archivePath = yield tc.extractXar(archivePath);
-        const extractPath = yield tc.extractTar(path.join(archivePath, `${manifest.version}-osx-package.pkg`, 'Payload'));
-        yield tc.cacheDir(extractPath, 'swift', manifest.version);
+        const extractPath = yield tc.extractTar(path.join(archivePath, `${release.filename}`, 'Payload'));
+        yield tc.cacheDir(extractPath, 'swift', tag);
     });
 }
 exports.install = install;
 /**
  * Export path or any other relative variables
  *
- * @param manifest manifest for installed tool
+ * @param tag the swift version tag
  * @param toolPath installed tool path
  */
-function exportVariables(manifest, toolPath) {
+function exportVariables(tag, toolPath) {
     return __awaiter(this, void 0, void 0, function* () {
         // Remove /usr/bin
         toolPath = toolPath.split('/').slice(0, -2).join('/');
@@ -7125,7 +7125,7 @@ function exportVariables(manifest, toolPath) {
             if (!fs.existsSync(toolchains.getToolchainsDirectory())) {
                 yield io.mkdirP(toolchains.getToolchainsDirectory());
             }
-            const toolchain = toolchains.getToolchain(manifest.version);
+            const toolchain = toolchains.getToolchain(tag);
             if (fs.existsSync(toolchain)) {
                 yield io.rmRF(toolchain);
             }
@@ -7148,7 +7148,7 @@ function exportVariables(manifest, toolPath) {
         core.addPath(toolPath);
         core.setOutput('swift-path', path.join(toolPath, 'swift'));
         core.setOutput('swift-version', swiftVersion);
-        core.info(`Successfully set up Swift ${swiftVersion} (${manifest.version})`);
+        core.info(`Successfully set up Swift ${swiftVersion} (${tag})`);
     });
 }
 exports.exportVariables = exportVariables;
@@ -7202,13 +7202,13 @@ const gpg = __importStar(__nccwpck_require__(3759));
 const tc = __importStar(__nccwpck_require__(9456));
 const utils = __importStar(__nccwpck_require__(1314));
 /**
- * Download and install tools define in manifest files
+ * Download and install tools define in release file
  *
- * @param manifest informations of tool
+ * @param tag the swift vertion tag
+ * @param release release file, contains filename platform platform_version arch and download_url
  */
-function install(manifest) {
+function install(tag, release) {
     return __awaiter(this, void 0, void 0, function* () {
-        const release = manifest.files[0];
         const signatureUrl = release.download_url + '.sig';
         const [archivePath, signature] = yield Promise.all([
             tc.downloadTool(release.download_url),
@@ -7218,17 +7218,17 @@ function install(manifest) {
         yield gpg.verify(signature, archivePath);
         let extractPath = yield tc.extractTar(archivePath);
         extractPath = path.join(extractPath, release.filename.replace('.tar.gz', ''));
-        yield tc.cacheDir(extractPath, 'swift', manifest.version);
+        yield tc.cacheDir(extractPath, 'swift', tag);
     });
 }
 exports.install = install;
 /**
  * Export path or any other relative variables
  *
- * @param manifest manifest for installed tool
+ * @param tag the swift version tag
  * @param toolPath installed tool path
  */
-function exportVariables(manifest, toolPath) {
+function exportVariables(tag, toolPath) {
     return __awaiter(this, void 0, void 0, function* () {
         let commandLine = '';
         let args;
@@ -7240,7 +7240,7 @@ function exportVariables(manifest, toolPath) {
         core.addPath(toolPath);
         core.setOutput('swift-path', path.join(toolPath, 'swift'));
         core.setOutput('swift-version', swiftVersion);
-        core.info(`Successfully set up Swift ${swiftVersion} (${manifest.version})`);
+        core.info(`Successfully set up Swift ${swiftVersion} (${tag})`);
     });
 }
 exports.exportVariables = exportVariables;
@@ -7291,15 +7291,16 @@ const core = __importStar(__nccwpck_require__(2186));
 const exec = __importStar(__nccwpck_require__(1514));
 const defaults = __importStar(__nccwpck_require__(5206));
 /**
- * Download and install tools define in manifest files
+ * Download and install tools define in release file
  *
- * @param manifest informations of tool
+ * @param tag the swift vertion tag
+ * @param release release file, contains filename platform platform_version arch and download_url
  */
-function install(manifest) {
+function install(tag, release) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             let args = [];
-            switch (manifest.files[0].platform_version) {
+            switch (release.platform_version) {
                 case '18.04':
                     args = [
                         '-y',
@@ -7370,19 +7371,19 @@ function install(manifest) {
         catch (error) {
             core.warning(error.message);
         }
-        yield defaults.install(manifest);
+        yield defaults.install(tag, release);
     });
 }
 exports.install = install;
 /**
  * Export path or any other relative variables
  *
- * @param manifest manifest for installed tool
+ * @param tag the swift version tag
  * @param toolPath installed tool path
  */
-function exportVariables(manifest, toolPath) {
+function exportVariables(tag, toolPath) {
     return __awaiter(this, void 0, void 0, function* () {
-        yield defaults.exportVariables(manifest, toolPath);
+        yield defaults.exportVariables(tag, toolPath);
     });
 }
 exports.exportVariables = exportVariables;
@@ -7455,9 +7456,10 @@ function run() {
                 : process.platform == 'darwin'
                     ? ''
                     : '10');
+            const release = manifest.files[0];
             let toolPath = yield finder.find(manifest, arch);
             if (!toolPath) {
-                yield installer.install(manifest);
+                yield installer.install(manifest.version, release);
                 toolPath = tc.find('swift', manifest.version, arch);
                 if (toolPath.length) {
                     toolPath = path_1.default.join(toolPath, '/usr/bin');
@@ -7471,7 +7473,7 @@ function run() {
                     `The list of all available versions can be found here: https://www.swift.org/download`
                 ].join(os_1.default.EOL));
             }
-            yield installer.exportVariables(manifest, toolPath);
+            yield installer.exportVariables(manifest.version, release, toolPath);
         }
         catch (err) {
             core.setFailed(err.message);
@@ -7803,7 +7805,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports._getCacheVersion = exports.cacheDir = exports.find = exports.isExplicitVersion = exports.extractXar = exports.extractTar = exports.evaluateVersions = exports.downloadTool = void 0;
+exports._getCacheVersion = exports.cacheDir = exports.find = exports.isExplicitVersion = exports.findFromManifest = exports.findAllVersions = exports.extractXar = exports.extractTar = exports.evaluateVersions = exports.downloadTool = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const tc = __importStar(__nccwpck_require__(7784));
 const os = __importStar(__nccwpck_require__(2037));
@@ -7816,6 +7818,8 @@ Object.defineProperty(exports, "downloadTool", ({ enumerable: true, get: functio
 Object.defineProperty(exports, "evaluateVersions", ({ enumerable: true, get: function () { return tool_cache_1.evaluateVersions; } }));
 Object.defineProperty(exports, "extractTar", ({ enumerable: true, get: function () { return tool_cache_1.extractTar; } }));
 Object.defineProperty(exports, "extractXar", ({ enumerable: true, get: function () { return tool_cache_1.extractXar; } }));
+Object.defineProperty(exports, "findAllVersions", ({ enumerable: true, get: function () { return tool_cache_1.findAllVersions; } }));
+Object.defineProperty(exports, "findFromManifest", ({ enumerable: true, get: function () { return tool_cache_1.findFromManifest; } }));
 Object.defineProperty(exports, "isExplicitVersion", ({ enumerable: true, get: function () { return tool_cache_1.isExplicitVersion; } }));
 /**
  * Finds the path to a tool version in the local installed tool cache

@@ -5,25 +5,24 @@ import * as darwin from './installers/darwin';
 import * as ubuntu from './installers/ubuntu';
 
 /**
- * Download and install tools define in manifest files
+ * Download and install tools define in release file
  *
- * @param manifest informations of tool
+ * @param tag the swift vertion tag
+ * @param release release file, contains filename platform platform_version arch and download_url
  */
-export async function install(manifest: tc.IToolRelease) {
-  const release = manifest.files[0];
-
+export async function install(tag: string, release: tc.IToolReleaseFile) {
   switch (release.platform) {
     case 'amazonlinux':
-      await amazonlinux.install(manifest);
+      await amazonlinux.install(tag, release);
       break;
     case 'centos':
-      await centos.install(manifest);
+      await centos.install(tag, release);
       break;
     case 'darwin':
-      await darwin.install(manifest);
+      await darwin.install(tag, release);
       break;
     case 'ubuntu':
-      await ubuntu.install(manifest);
+      await ubuntu.install(tag, release);
       break;
     default:
       throw new Error(
@@ -35,29 +34,27 @@ export async function install(manifest: tc.IToolRelease) {
 /**
  * Export path or any other relative variables
  *
- * on macOS this also create symblink for installed toolchains
- *
- * @param manifest manifest for installed tool
+ * @param tag the swift version tag
+ * @param release release file, contains install metadatas
  * @param toolPath installed tool path
  */
 export async function exportVariables(
-  manifest: tc.IToolRelease,
+  tag: string,
+  release: tc.IToolReleaseFile,
   toolPath: string
 ) {
-  const release = manifest.files[0];
-
   switch (release.platform) {
     case 'amazonlinux':
-      await amazonlinux.exportVariables(manifest, toolPath);
+      await amazonlinux.exportVariables(tag, toolPath);
       break;
     case 'centos':
-      await centos.exportVariables(manifest, toolPath);
+      await centos.exportVariables(tag, toolPath);
       break;
     case 'darwin':
-      await darwin.exportVariables(manifest, toolPath);
+      await darwin.exportVariables(tag, toolPath);
       break;
     case 'ubuntu':
-      await ubuntu.exportVariables(manifest, toolPath);
+      await ubuntu.exportVariables(tag, toolPath);
       break;
     default:
       throw new Error(

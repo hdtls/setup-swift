@@ -11,8 +11,11 @@ export {
   evaluateVersions,
   extractTar,
   extractXar,
+  findAllVersions,
+  findFromManifest,
   isExplicitVersion,
-  IToolRelease
+  IToolRelease,
+  IToolReleaseFile
 } from '@actions/tool-cache';
 
 /**

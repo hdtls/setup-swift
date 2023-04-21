@@ -4,11 +4,12 @@ import * as tc from '../tool-cache';
 import * as defaults from './defaults';
 
 /**
- * Download and install tools define in manifest files
+ * Download and install tools define in release file
  *
- * @param manifest informations of tool
+ * @param tag the swift vertion tag
+ * @param release release file, contains filename platform platform_version arch and download_url
  */
-export async function install(manifest: tc.IToolRelease) {
+export async function install(tag: string, release: tc.IToolReleaseFile) {
   try {
     const args = [
       '-q',
@@ -37,18 +38,15 @@ export async function install(manifest: tc.IToolRelease) {
   } catch (error) {
     core.warning((error as Error).message);
   }
-  await defaults.install(manifest);
+  await defaults.install(tag, release);
 }
 
 /**
  * Export path or any other relative variables
  *
- * @param manifest manifest for installed tool
+ * @param tag the swift version tag
  * @param toolPath installed tool path
  */
-export async function exportVariables(
-  manifest: tc.IToolRelease,
-  toolPath: string
-) {
-  await defaults.exportVariables(manifest, toolPath);
+export async function exportVariables(tag: string, toolPath: string) {
+  await defaults.exportVariables(tag, toolPath);
 }

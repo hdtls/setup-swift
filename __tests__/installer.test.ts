@@ -5,7 +5,7 @@ import * as path from 'path';
 import fs from 'fs';
 import os from 'os';
 import * as installer from '../src/installer';
-import { IToolRelease } from '../src/tool-cache';
+import * as tc from '../src/tool-cache';
 import * as toolchains from '../src/toolchains';
 
 const SWIFT_VERSION = '5.7.3';
@@ -56,6 +56,7 @@ describe('installer', () => {
   let coreInfoSpy: jest.SpyInstance;
   let coreDebugSpy: jest.SpyInstance;
   let getExecOutput: jest.SpyInstance;
+  let downloadToolSpy: jest.SpyInstance;
 
   beforeEach(() => {
     console.log('::stop-commands::stoptoken'); // Disable executing of runner commands when running tests in actions
@@ -73,6 +74,8 @@ describe('installer', () => {
       exitCode: 0,
       stderr: ''
     });
+    downloadToolSpy = jest.spyOn(tc, 'downloadTool');
+    downloadToolSpy.mockResolvedValue('');
   });
 
   afterEach(() => {
@@ -85,26 +88,16 @@ describe('installer', () => {
     console.log('::stoptoken::'); // Re-enable executing of runner commands when running tests in actions
   });
 
-  function _getManifest(
+  function _getReleaseFile(
     platform: string,
-    version?: string,
-    stable?: boolean,
-    arch?: string,
-    platformVersion?: string
-  ): IToolRelease {
+    platform_version?: string
+  ): tc.IToolReleaseFile {
     return {
-      version: version || 'swift-5.7.3-RELEASE',
-      stable: stable !== undefined ? stable : true,
-      release_url: '',
-      files: [
-        {
-          filename: '',
-          platform: platform,
-          download_url: '',
-          arch: arch || 'x64',
-          platform_version: platformVersion
-        }
-      ]
+      filename: '',
+      platform: platform,
+      download_url: '',
+      arch: 'x64',
+      platform_version: platform_version
     };
   }
 
@@ -125,28 +118,40 @@ describe('installer', () => {
 
   it('install on unsupported platform', async () => {
     const platform = 'unsupported';
-    const manifest = _getManifest(platform);
+    const release = _getReleaseFile(platform);
 
-    await expect(installer.install(manifest)).rejects.toThrow(
-      `Installing Swift on ${platform} is not supported yet`
-    );
+    await expect(
+      installer.exportVariables(
+        `swift-${SWIFT_VERSION}-RELEASE`,
+        release,
+        __dirname
+      )
+    ).rejects.toThrow(`Installing Swift on ${platform} is not supported yet`);
   });
 
   it('export variables for unsupported platform', async () => {
     const platform = 'unsupported';
-    const manifest = _getManifest(platform);
+    const release = _getReleaseFile(platform);
 
     await expect(
-      installer.exportVariables(manifest, __dirname)
+      installer.exportVariables(
+        `swift-${SWIFT_VERSION}-RELEASE`,
+        release,
+        __dirname
+      )
     ).rejects.toThrow(`Installing Swift on ${platform} is not supported yet`);
   });
 
   it.each(['amazonlinux', 'centos', 'ubuntu'])(
     'export variables for %s',
     async platform => {
-      const manifest = _getManifest(platform);
+      const release = _getReleaseFile(platform);
 
-      await installer.exportVariables(manifest, __dirname);
+      await installer.exportVariables(
+        `swift-${SWIFT_VERSION}-RELEASE`,
+        release,
+        __dirname
+      );
 
       _assertExportVariables(__dirname);
     }
@@ -228,9 +233,13 @@ describe('installer', () => {
       ])('toolchain is in the %s', async (scope, toolchain) => {
         const toolPath = toolchain.split('/').slice(0, -2).join('/');
         const expectedToolPath = path.join(toolPath, '/usr/bin');
-        const manifest = _getManifest('darwin');
+        const release = _getReleaseFile('darwin');
 
-        await installer.exportVariables(manifest, toolchain);
+        await installer.exportVariables(
+          `swift-${SWIFT_VERSION}-RELEASE`,
+          release,
+          toolchain
+        );
 
         expect(existsSpy).toHaveBeenCalledTimes(1);
         expect(mkdirPSpy).toHaveBeenCalledTimes(0);
@@ -244,7 +253,7 @@ describe('installer', () => {
       describe('user toolchains does not exists', () => {
         it('should create user toolchains directory', async () => {
           const toolchain = '/opt/hostedtoolcache/swift/5.7.3/x64/usr/bin';
-          const manifest = _getManifest('darwin');
+          const release = _getReleaseFile('darwin');
           const toolPath = toolchain.split('/').slice(0, -2).join('/');
           const expectedToolPath = path.join(toolPath, '/usr/bin');
 
@@ -254,7 +263,11 @@ describe('installer', () => {
             .mockReturnValueOnce(false)
             .mockReturnValueOnce(false);
 
-          await installer.exportVariables(manifest, toolchain);
+          await installer.exportVariables(
+            `swift-${SWIFT_VERSION}-RELEASE`,
+            release,
+            toolchain
+          );
 
           expect(existsSpy).toHaveBeenCalledTimes(4);
           expect(mkdirPSpy).toHaveBeenCalledTimes(1);
@@ -267,7 +280,7 @@ describe('installer', () => {
       describe('user toolchains exists', () => {
         it('toolchain with same version exists swift-latest symblink does not exists', async () => {
           const toolchain = '/opt/hostedtoolcache/swift/5.7.3/x64/usr/bin';
-          const manifest = _getManifest('darwin');
+          const release = _getReleaseFile('darwin');
           const toolPath = toolchain.split('/').slice(0, -2).join('/');
           const expectedToolPath = path.join(toolPath, '/usr/bin');
 
@@ -276,7 +289,11 @@ describe('installer', () => {
             .mockReturnValueOnce(true)
             .mockReturnValueOnce(false);
 
-          await installer.exportVariables(manifest, toolchain);
+          await installer.exportVariables(
+            `swift-${SWIFT_VERSION}-RELEASE`,
+            release,
+            toolchain
+          );
 
           expect(existsSpy).toHaveBeenCalledTimes(4);
           expect(mkdirPSpy).toHaveBeenCalledTimes(0);
@@ -287,7 +304,7 @@ describe('installer', () => {
 
         it('toolchain with same version exists swift-latest symblink also exists', async () => {
           const toolchain = '/opt/hostedtoolcache/swift/5.7.3/x64/usr/bin';
-          const manifest = _getManifest('darwin');
+          const release = _getReleaseFile('darwin');
           const toolPath = toolchain.split('/').slice(0, -2).join('/');
           const expectedToolPath = path.join(toolPath, '/usr/bin');
 
@@ -296,7 +313,11 @@ describe('installer', () => {
             .mockReturnValueOnce(true)
             .mockReturnValueOnce(true);
 
-          await installer.exportVariables(manifest, toolchain);
+          await installer.exportVariables(
+            `swift-${SWIFT_VERSION}-RELEASE`,
+            release,
+            toolchain
+          );
 
           expect(existsSpy).toHaveBeenCalledTimes(4);
           expect(mkdirPSpy).toHaveBeenCalledTimes(0);
@@ -307,7 +328,7 @@ describe('installer', () => {
 
         it('toolchain with same version does not exists but swift-latest symblink exists', async () => {
           const toolchain = '/opt/hostedtoolcache/swift/5.7.3/x64/usr/bin';
-          const manifest = _getManifest('darwin');
+          const release = _getReleaseFile('darwin');
           const toolPath = toolchain.split('/').slice(0, -2).join('/');
           const expectedToolPath = path.join(toolPath, '/usr/bin');
 
@@ -316,7 +337,11 @@ describe('installer', () => {
             .mockReturnValueOnce(false)
             .mockReturnValueOnce(true);
 
-          await installer.exportVariables(manifest, toolchain);
+          await installer.exportVariables(
+            `swift-${SWIFT_VERSION}-RELEASE`,
+            release,
+            toolchain
+          );
 
           expect(existsSpy).toHaveBeenCalledTimes(4);
           expect(mkdirPSpy).toHaveBeenCalledTimes(0);
@@ -327,7 +352,7 @@ describe('installer', () => {
 
         it('both toolchain with same version and swift-latest symblink does not exists', async () => {
           const toolchain = '/opt/hostedtoolcache/swift/5.7.3/x64/usr/bin';
-          const manifest = _getManifest('darwin');
+          const release = _getReleaseFile('darwin');
           const toolPath = toolchain.split('/').slice(0, -2).join('/');
           const expectedToolPath = path.join(toolPath, '/usr/bin');
 
@@ -336,7 +361,11 @@ describe('installer', () => {
             .mockReturnValueOnce(false)
             .mockReturnValueOnce(false);
 
-          await installer.exportVariables(manifest, toolchain);
+          await installer.exportVariables(
+            `swift-${SWIFT_VERSION}-RELEASE`,
+            release,
+            toolchain
+          );
 
           expect(existsSpy).toHaveBeenCalledTimes(4);
           expect(mkdirPSpy).toHaveBeenCalledTimes(0);
