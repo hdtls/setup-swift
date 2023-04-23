@@ -1,5 +1,4 @@
 import * as core from '@actions/core';
-import * as tcr from '@actions/tool-cache';
 import os from 'os';
 import * as finder from './finder';
 import * as tc from './tool-cache';
