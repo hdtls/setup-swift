@@ -17,7 +17,11 @@ export async function install(tag: string, release: tc.IToolReleaseFile) {
   let archivePath = await tc.downloadTool(release.download_url);
   archivePath = await tc.extractXar(archivePath);
   const extractPath = await tc.extractTar(
-    path.join(archivePath, `${release.filename}`, 'Payload')
+    path.join(
+      archivePath,
+      `${release.filename.replace('-osx.pkg', '-osx-package.pkg')}`,
+      'Payload'
+    )
   );
 
   await tc.cacheDir(extractPath, 'swift', tag);

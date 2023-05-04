@@ -7099,7 +7099,7 @@ function install(tag, release) {
     return __awaiter(this, void 0, void 0, function* () {
         let archivePath = yield tc.downloadTool(release.download_url);
         archivePath = yield tc.extractXar(archivePath);
-        const extractPath = yield tc.extractTar(path.join(archivePath, `${release.filename}`, 'Payload'));
+        const extractPath = yield tc.extractTar(path.join(archivePath, `${release.filename.replace('-osx.pkg', '-osx-package.pkg')}`, 'Payload'));
         yield tc.cacheDir(extractPath, 'swift', tag);
     });
 }
