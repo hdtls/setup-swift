@@ -36,7 +36,7 @@ export async function install(tag: string, release: tc.IToolReleaseFile) {
       '/usr/include/unistd.h'
     ]);
   } catch (error) {
-    core.warning((error as Error).message);
+    core.info((error as Error).message);
   }
   await defaults.install(tag, release);
 }
