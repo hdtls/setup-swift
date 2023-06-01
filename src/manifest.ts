@@ -158,6 +158,7 @@ export async function resolveLatestBuildIfNeeded(
 
 // Also update Github actions integration-tests if needed.
 const SWIFT_VERSIONS = [
+  '5.8.1',
   '5.8',
   '5.7.3',
   '5.7.2',
