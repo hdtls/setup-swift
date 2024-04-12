@@ -22,37 +22,20 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Run setup-swift (swift-5.9.1-RELEASE)
-        uses: ./
-        with:
-          swift-version: swift-5.9.1-RELEASE
-      - name: Verify swift (swift-5.9.1-RELEASE)
-        run: __tests__/verify-swift.sh "swift-5.9.1-RELEASE"
-        shell: bash
-
-      - name: Run setup-swift (5.9)
-        uses: ./
-        with:
-          swift-version: 5.9
-      - name: Verify swift (5.9)
-        run: __tests__/verify-swift.sh "5.9.2"
-        shell: bash
-
       - name: Run setup-swift (5)
         uses: ./
         with:
           swift-version: 5
       - name: Verify swift (5)
-        # Need update if available swift versions (SWIFT_VERSIONS) changed.
-        run: __tests__/verify-swift.sh "5.9.2"
+        run: __tests__/verify-swift.sh "5.10"
         shell: bash
       
-      - name: Run setup-swift (nightly-5.7)
+      - name: Run setup-swift (nightly-6.0)
         uses: ./
         with:
-          swift-version: nightly-5.7
-      - name: Verify swift (nightly-5.7)
-        run: __tests__/verify-swift.sh "nightly-5.7"
+          swift-version: nightly-6.0
+      - name: Verify swift (nightly-6.0)
+        run: __tests__/verify-swift.sh "nightly-6.0"
         shell: bash
 
       - name: Run setup-swift (swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a)

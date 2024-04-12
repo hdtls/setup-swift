@@ -12,7 +12,7 @@ describe('manifest', () => {
       ['swift-5.7-RELEASE', 'swift-5.7.3-RELEASE'],
       ['5.7.1', 'swift-5.7.1-RELEASE'],
       ['5.7', 'swift-5.7.3-RELEASE'],
-      ['5', 'swift-5.9.2-RELEASE']
+      ['5', 'swift-5.10-RELEASE']
     ])('for %s', async (versionSpec, expected) => {
       const actual = await mm.resolveLatestBuildIfNeeded(versionSpec, 'xcode');
       expect(actual).toBe(expected);
@@ -170,14 +170,14 @@ name: Swift Development Snapshot
       it.each(['x64', 'arm64'])('on darwin %s', async arch => {
         const actual = await mm.resolve(versionSpec, 'darwin', arch);
         const expected = {
-          version: 'swift-5.9.2-RELEASE',
+          version: 'swift-5.10-RELEASE',
           stable: true,
           release_url: '',
           files: [
             {
-              filename: 'swift-5.9.2-RELEASE-osx.pkg',
+              filename: 'swift-5.10-RELEASE-osx.pkg',
               platform: 'darwin',
-              download_url: `https://download.swift.org/swift-5.9.2-release/xcode/swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-osx.pkg`,
+              download_url: `https://download.swift.org/swift-5.10-release/xcode/swift-5.10-RELEASE/swift-5.10-RELEASE-osx.pkg`,
               arch: arch,
               platform_version: undefined
             }
@@ -189,18 +189,18 @@ name: Swift Development Snapshot
       it.each(['x64', 'arm64'])('on ubuntu %s', async arch => {
         const actual = await mm.resolve(versionSpec, 'ubuntu', arch, '22.04');
         const expected = {
-          version: 'swift-5.9.2-RELEASE',
+          version: 'swift-5.10-RELEASE',
           stable: true,
           release_url: '',
           files: [
             {
-              filename: `swift-5.9.2-RELEASE-ubuntu22.04${
+              filename: `swift-5.10-RELEASE-ubuntu22.04${
                 arch == 'arm64' ? '-aarch64' : ''
               }.tar.gz`,
               platform: 'ubuntu',
-              download_url: `https://download.swift.org/swift-5.9.2-release/ubuntu2204${
+              download_url: `https://download.swift.org/swift-5.10-release/ubuntu2204${
                 arch == 'arm64' ? '-aarch64' : ''
-              }/swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-ubuntu22.04${
+              }/swift-5.10-RELEASE/swift-5.10-RELEASE-ubuntu22.04${
                 arch == 'arm64' ? '-aarch64' : ''
               }.tar.gz`,
               arch: arch,
