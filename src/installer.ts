@@ -7,22 +7,22 @@ import * as ubuntu from './installers/ubuntu';
 /**
  * Download and install tools define in release file
  *
- * @param tag the swift vertion tag
+ * @param version the swift vertion
  * @param release release file, contains filename platform platform_version arch and download_url
  */
-export async function install(tag: string, release: tc.IToolReleaseFile) {
+export async function install(version: string, release: tc.IToolReleaseFile) {
   switch (release.platform) {
     case 'amazonlinux':
-      await amazonlinux.install(tag, release);
+      await amazonlinux.install(version, release);
       break;
     case 'centos':
-      await centos.install(tag, release);
+      await centos.install(version, release);
       break;
     case 'darwin':
-      await darwin.install(tag, release);
+      await darwin.install(version, release);
       break;
     case 'ubuntu':
-      await ubuntu.install(tag, release);
+      await ubuntu.install(version, release);
       break;
     default:
       throw new Error(
@@ -34,27 +34,27 @@ export async function install(tag: string, release: tc.IToolReleaseFile) {
 /**
  * Export path or any other relative variables
  *
- * @param tag the swift version tag
+ * @param version the swift version tag
  * @param release release file, contains install metadatas
  * @param toolPath installed tool path
  */
 export async function exportVariables(
-  tag: string,
+  version: string,
   release: tc.IToolReleaseFile,
   toolPath: string
 ) {
   switch (release.platform) {
     case 'amazonlinux':
-      await amazonlinux.exportVariables(tag, toolPath);
+      await amazonlinux.exportVariables(version, toolPath);
       break;
     case 'centos':
-      await centos.exportVariables(tag, toolPath);
+      await centos.exportVariables(version, toolPath);
       break;
     case 'darwin':
-      await darwin.exportVariables(tag, toolPath);
+      await darwin.exportVariables(version, toolPath);
       break;
     case 'ubuntu':
-      await ubuntu.exportVariables(tag, toolPath);
+      await ubuntu.exportVariables(version, toolPath);
       break;
     default:
       throw new Error(

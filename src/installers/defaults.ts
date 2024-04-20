@@ -8,10 +8,10 @@ import * as utils from '../utils';
 /**
  * Download and install tools define in release file
  *
- * @param tag the swift vertion tag
+ * @param version the swift vertion
  * @param release release file, contains filename platform platform_version arch and download_url
  */
-export async function install(tag: string, release: tc.IToolReleaseFile) {
+export async function install(version: string, release: tc.IToolReleaseFile) {
   const signatureUrl = release.download_url + '.sig';
   const [archivePath, signature] = await Promise.all([
     tc.downloadTool(release.download_url),
@@ -24,16 +24,16 @@ export async function install(tag: string, release: tc.IToolReleaseFile) {
   let extractPath = await tc.extractTar(archivePath);
   extractPath = path.join(extractPath, release.filename.replace('.tar.gz', ''));
 
-  await tc.cacheDir(extractPath, 'swift', tag);
+  await tc.cacheDir(extractPath, 'swift', version);
 }
 
 /**
  * Export path or any other relative variables
  *
- * @param tag the swift version tag
+ * @param version the swift version
  * @param toolPath installed tool path
  */
-export async function exportVariables(tag: string, toolPath: string) {
+export async function exportVariables(version: string, toolPath: string) {
   let commandLine = '';
   let args: string[] | undefined;
   commandLine = path.join(toolPath, 'swift');
@@ -47,5 +47,5 @@ export async function exportVariables(tag: string, toolPath: string) {
   core.addPath(toolPath);
   core.setOutput('swift-path', path.join(toolPath, 'swift'));
   core.setOutput('swift-version', swiftVersion);
-  core.info(`Successfully set up Swift ${swiftVersion} (${tag})`);
+  core.info(`Successfully set up Swift ${swiftVersion} (${version})`);
 }

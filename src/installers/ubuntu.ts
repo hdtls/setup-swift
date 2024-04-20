@@ -6,10 +6,10 @@ import * as defaults from './defaults';
 /**
  * Download and install tools define in release file
  *
- * @param tag the swift vertion tag
+ * @param version the swift vertion
  * @param release release file, contains filename platform platform_version arch and download_url
  */
-export async function install(tag: string, release: tc.IToolReleaseFile) {
+export async function install(version: string, release: tc.IToolReleaseFile) {
   try {
     let args: string[] = [];
     switch (release.platform_version) {
@@ -82,15 +82,15 @@ export async function install(tag: string, release: tc.IToolReleaseFile) {
   } catch (error) {
     core.info((error as Error).message);
   }
-  await defaults.install(tag, release);
+  await defaults.install(version, release);
 }
 
 /**
  * Export path or any other relative variables
  *
- * @param tag the swift version tag
+ * @param version the swift version
  * @param toolPath installed tool path
  */
-export async function exportVariables(tag: string, toolPath: string) {
-  await defaults.exportVariables(tag, toolPath);
+export async function exportVariables(version: string, toolPath: string) {
+  await defaults.exportVariables(version, toolPath);
 }
