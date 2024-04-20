@@ -1,11 +1,11 @@
 import * as core from '@actions/core';
 import * as exec from '@actions/exec';
 import * as io from '@actions/io';
+import * as tc from '@actions/tool-cache';
 import * as path from 'path';
 import fs from 'fs';
 import os from 'os';
 import * as installer from '../src/installer';
-import * as tc from '../src/tool-cache';
 import * as toolchains from '../src/toolchains';
 
 const SWIFT_VERSION = '5.7.3';

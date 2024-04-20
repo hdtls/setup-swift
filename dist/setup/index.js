@@ -28820,12 +28820,13 @@ exports.find = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const exec = __importStar(__nccwpck_require__(1514));
 const io = __importStar(__nccwpck_require__(7436));
+const tc = __importStar(__nccwpck_require__(7784));
 const os = __importStar(__nccwpck_require__(2037));
 const fs = __importStar(__nccwpck_require__(7147));
-const tc = __importStar(__nccwpck_require__(9456));
 const utils = __importStar(__nccwpck_require__(1314));
 const toolchains = __importStar(__nccwpck_require__(9322));
 const path = __importStar(__nccwpck_require__(1017));
+const formatter = __importStar(__nccwpck_require__(109));
 const re_1 = __nccwpck_require__(1075);
 /**
  * Finds the path for tool in the system-wide
@@ -28836,7 +28837,12 @@ const re_1 = __nccwpck_require__(1075);
  */
 function find(manifest_1) {
     return __awaiter(this, arguments, void 0, function* (manifest, arch = os.arch()) {
-        let toolPath = '';
+        // Check setup-swift action installed...
+        let version = formatter.parse(manifest.version);
+        let toolPath = tc.find('swift', version, arch);
+        if (toolPath.length) {
+            return path.join(toolPath, '/usr/bin');
+        }
         // System-wide lookups for nightly versions will be ignored.
         if (re_1.re[re_1.t.SWIFTRELEASE].test(manifest.version)) {
             let toolPaths = [];
@@ -28918,16 +28924,37 @@ function find(manifest_1) {
                 core.debug('Not found');
             }
         }
-        // Check setup-swift action installed...
-        toolPath = tc.find('swift', manifest.version, arch);
-        if (!toolPath) {
-            core.info(`Version ${manifest.version} was not found in the local cache`);
-            return '';
-        }
-        return path.join(toolPath, '/usr/bin');
+        core.info(`Version ${manifest.version} was not found in the local cache`);
+        return '';
     });
 }
 exports.find = find;
+
+
+/***/ }),
+
+/***/ 109:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.parse = void 0;
+const re_1 = __nccwpck_require__(1075);
+function parse(parseInput) {
+    switch (true) {
+        case re_1.re[re_1.t.SWIFTRELEASE].test(parseInput):
+            parseInput = parseInput.replace(re_1.re[re_1.t.SWIFTRELEASE], '$1');
+            return (0, re_1.coerce)(parseInput);
+        case re_1.re[re_1.t.SWIFTNIGHTLY].test(parseInput):
+            return parseInput.replace(re_1.re[re_1.t.SWIFTNIGHTLY], '$1+$5$6$7');
+        case re_1.re[re_1.t.SWIFTMAINLINENIGHTLY].test(parseInput):
+            return parseInput.replace(re_1.re[re_1.t.SWIFTMAINLINENIGHTLY], 'main+$1$2$3');
+        default:
+            throw new Error(`Cannot resolve semantic version from: ${parseInput}`);
+    }
+}
+exports.parse = parse;
 
 
 /***/ }),
@@ -29344,11 +29371,12 @@ exports.exportVariables = exports.install = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const exec = __importStar(__nccwpck_require__(1514));
 const io = __importStar(__nccwpck_require__(7436));
+const tc = __importStar(__nccwpck_require__(7784));
 const fs = __importStar(__nccwpck_require__(7147));
 const path = __importStar(__nccwpck_require__(1017));
-const tc = __importStar(__nccwpck_require__(9456));
 const toolchains = __importStar(__nccwpck_require__(9322));
 const utils = __importStar(__nccwpck_require__(1314));
+const formatter = __importStar(__nccwpck_require__(109));
 /**
  * Download and install tools define in release file
  *
@@ -29360,7 +29388,7 @@ function install(version, release) {
         let archivePath = yield tc.downloadTool(release.download_url);
         archivePath = yield tc.extractXar(archivePath);
         const extractPath = yield tc.extractTar(path.join(archivePath, `${release.filename.replace('-osx.pkg', '-osx-package.pkg')}`, 'Payload'));
-        yield tc.cacheDir(extractPath, 'swift', version);
+        yield tc.cacheDir(extractPath, 'swift', formatter.parse(version));
     });
 }
 exports.install = install;
@@ -29459,7 +29487,7 @@ const core = __importStar(__nccwpck_require__(2186));
 const exec = __importStar(__nccwpck_require__(1514));
 const path = __importStar(__nccwpck_require__(1017));
 const gpg = __importStar(__nccwpck_require__(3759));
-const tc = __importStar(__nccwpck_require__(9456));
+const tc = __importStar(__nccwpck_require__(7784));
 const utils = __importStar(__nccwpck_require__(1314));
 /**
  * Download and install tools define in release file
@@ -29478,6 +29506,7 @@ function install(version, release) {
         yield gpg.verify(signature, archivePath);
         let extractPath = yield tc.extractTar(archivePath);
         extractPath = path.join(extractPath, release.filename.replace('.tar.gz', ''));
+        // TODO: Resolve version
         yield tc.cacheDir(extractPath, 'swift', version);
     });
 }
@@ -29696,11 +29725,9 @@ exports.run = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const os_1 = __importDefault(__nccwpck_require__(2037));
 const finder = __importStar(__nccwpck_require__(6932));
-const tc = __importStar(__nccwpck_require__(9456));
 const installer = __importStar(__nccwpck_require__(2574));
 const mm = __importStar(__nccwpck_require__(1635));
 const utils = __importStar(__nccwpck_require__(1314));
-const path_1 = __importDefault(__nccwpck_require__(1017));
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -29717,13 +29744,10 @@ function run() {
                     ? ''
                     : '10');
             const release = manifest.files[0];
-            let toolPath = yield finder.find(manifest, arch);
+            let toolPath = yield finder.find(manifest);
             if (!toolPath) {
                 yield installer.install(manifest.version, release);
-                toolPath = tc.find('swift', manifest.version, arch);
-                if (toolPath.length) {
-                    toolPath = path_1.default.join(toolPath, '/usr/bin');
-                }
+                toolPath = yield finder.find(manifest);
             }
             if (!toolPath) {
                 throw new Error([
@@ -29784,7 +29808,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.resolveLatestBuildIfNeeded = exports.resolve = void 0;
-const tc = __importStar(__nccwpck_require__(9456));
+const tc = __importStar(__nccwpck_require__(7784));
 const fs = __importStar(__nccwpck_require__(7147));
 const re_1 = __nccwpck_require__(1075);
 /**
@@ -30025,143 +30049,6 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const main = __importStar(__nccwpck_require__(399));
 main.run();
-
-
-/***/ }),
-
-/***/ 9456:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports._getCacheVersion = exports.cacheDir = exports.find = exports.isExplicitVersion = exports.findFromManifest = exports.findAllVersions = exports.extractXar = exports.extractTar = exports.evaluateVersions = exports.downloadTool = void 0;
-const core = __importStar(__nccwpck_require__(2186));
-const tc = __importStar(__nccwpck_require__(7784));
-const os = __importStar(__nccwpck_require__(2037));
-const fs = __importStar(__nccwpck_require__(7147));
-const path_1 = __importDefault(__nccwpck_require__(1017));
-const assert_1 = __importDefault(__nccwpck_require__(9491));
-const re_1 = __nccwpck_require__(1075);
-var tool_cache_1 = __nccwpck_require__(7784);
-Object.defineProperty(exports, "downloadTool", ({ enumerable: true, get: function () { return tool_cache_1.downloadTool; } }));
-Object.defineProperty(exports, "evaluateVersions", ({ enumerable: true, get: function () { return tool_cache_1.evaluateVersions; } }));
-Object.defineProperty(exports, "extractTar", ({ enumerable: true, get: function () { return tool_cache_1.extractTar; } }));
-Object.defineProperty(exports, "extractXar", ({ enumerable: true, get: function () { return tool_cache_1.extractXar; } }));
-Object.defineProperty(exports, "findAllVersions", ({ enumerable: true, get: function () { return tool_cache_1.findAllVersions; } }));
-Object.defineProperty(exports, "findFromManifest", ({ enumerable: true, get: function () { return tool_cache_1.findFromManifest; } }));
-Object.defineProperty(exports, "isExplicitVersion", ({ enumerable: true, get: function () { return tool_cache_1.isExplicitVersion; } }));
-/**
- * Finds the path to a tool version in the local installed tool cache
- *
- * @param toolName      name of the tool
- * @param versionSpec   tag of the tool
- * @param arch          optional arch.  defaults to arch of computer
- */
-function find(toolName, versionSpec, arch) {
-    const version = _getCacheVersion(versionSpec);
-    const pattern = `^(?:main|${re_1.src[re_1.t.NUMERICIDENTIFIER]}\\.${re_1.src[re_1.t.NUMERICIDENTIFIER]})\\+${re_1.src[re_1.t.NUMERICIDENTIFIER]}$`;
-    if (!new RegExp(pattern).test(version)) {
-        return tc.find(toolName, version, arch);
-    }
-    if (!toolName) {
-        throw new Error('toolName parameter is required');
-    }
-    if (!versionSpec) {
-        throw new Error('versionSpec parameter is required');
-    }
-    arch = arch || os.arch();
-    let toolPath = '';
-    const cachePath = path_1.default.join(_getCacheDirectory(), toolName, version, arch);
-    core.debug(`checking cache: ${cachePath}`);
-    if (fs.existsSync(cachePath) && fs.existsSync(`${cachePath}.complete`)) {
-        core.debug(`Found tool in cache ${toolName} ${versionSpec} ${arch}`);
-        toolPath = cachePath;
-    }
-    else {
-        core.debug('not found');
-    }
-    return toolPath;
-}
-exports.find = find;
-/**
- * Caches a directory and installs it into the tool cacheDir
- *
- * @param sourceDir     the directory to cache into tools
- * @param tool          tool name
- * @param versionSpec   tag of the tool
- * @param arch          architecture of the tool.  Optional.  Defaults to machine architecture
- */
-function cacheDir(sourceDir, tool, versionSpec, arch) {
-    return __awaiter(this, void 0, void 0, function* () {
-        let version = _getCacheVersion(versionSpec);
-        return yield tc.cacheDir(sourceDir, tool, version, arch);
-    });
-}
-exports.cacheDir = cacheDir;
-/**
- * Gets RUNNER_TOOL_CACHE
- */
-function _getCacheDirectory() {
-    const cacheDirectory = process.env['RUNNER_TOOL_CACHE'] || '';
-    assert_1.default.ok(cacheDirectory, 'Expected RUNNER_TOOL_CACHE to be defined');
-    return cacheDirectory;
-}
-/**
- * Gets tool cache version from specified swift tag.
- *
- * @param versionSpec   the tag of tool
- * @returns             resolved tool cache version
- */
-function _getCacheVersion(versionSpec) {
-    switch (true) {
-        case re_1.re[re_1.t.SWIFTRELEASE].test(versionSpec):
-            versionSpec = versionSpec.replace(re_1.re[re_1.t.SWIFTRELEASE], '$1');
-            return (0, re_1.coerce)(versionSpec);
-        case re_1.re[re_1.t.SWIFTNIGHTLY].test(versionSpec):
-            return versionSpec.replace(re_1.re[re_1.t.SWIFTNIGHTLY], '$1+$5$6$7');
-        case re_1.re[re_1.t.SWIFTMAINLINENIGHTLY].test(versionSpec):
-            return versionSpec.replace(re_1.re[re_1.t.SWIFTMAINLINENIGHTLY], 'main+$1$2$3');
-        default:
-            throw new Error(`Cannot resolve cache tool version for an unsupported version: ${versionSpec}`);
-    }
-}
-exports._getCacheVersion = _getCacheVersion;
 
 
 /***/ }),

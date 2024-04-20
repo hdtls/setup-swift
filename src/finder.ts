@@ -1,12 +1,13 @@
 import * as core from '@actions/core';
 import * as exec from '@actions/exec';
 import * as io from '@actions/io';
+import * as tc from '@actions/tool-cache';
 import * as os from 'os';
 import * as fs from 'fs';
-import * as tc from './tool-cache';
 import * as utils from './utils';
 import * as toolchains from './toolchains';
 import * as path from 'path';
+import * as formatter from './formatter';
 import { re, t } from './re';
 
 /**
@@ -20,7 +21,12 @@ export async function find(
   manifest: tc.IToolRelease,
   arch: string = os.arch()
 ) {
-  let toolPath = '';
+  // Check setup-swift action installed...
+  let version = formatter.parse(manifest.version);
+  let toolPath = tc.find('swift', version, arch);
+  if (toolPath.length) {
+    return path.join(toolPath, '/usr/bin');
+  }
 
   // System-wide lookups for nightly versions will be ignored.
   if (re[t.SWIFTRELEASE].test(manifest.version)) {
@@ -118,11 +124,6 @@ export async function find(
     }
   }
 
-  // Check setup-swift action installed...
-  toolPath = tc.find('swift', manifest.version, arch);
-  if (!toolPath) {
-    core.info(`Version ${manifest.version} was not found in the local cache`);
-    return '';
-  }
-  return path.join(toolPath, '/usr/bin');
+  core.info(`Version ${manifest.version} was not found in the local cache`);
+  return '';
 }

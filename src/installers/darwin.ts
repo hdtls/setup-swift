@@ -1,11 +1,12 @@
 import * as core from '@actions/core';
 import * as exec from '@actions/exec';
 import * as io from '@actions/io';
+import * as tc from '@actions/tool-cache';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as tc from '../tool-cache';
 import * as toolchains from '../toolchains';
 import * as utils from '../utils';
+import * as formatter from '../formatter';
 
 /**
  * Download and install tools define in release file
@@ -24,7 +25,7 @@ export async function install(version: string, release: tc.IToolReleaseFile) {
     )
   );
 
-  await tc.cacheDir(extractPath, 'swift', version);
+  await tc.cacheDir(extractPath, 'swift', formatter.parse(version));
 }
 
 /**

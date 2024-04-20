@@ -1,11 +1,9 @@
 import * as core from '@actions/core';
 import os from 'os';
 import * as finder from './finder';
-import * as tc from './tool-cache';
 import * as installer from './installer';
 import * as mm from './manifest';
 import * as utils from './utils';
-import path from 'path';
 
 export async function run() {
   try {
@@ -25,20 +23,16 @@ export async function run() {
       process.platform == 'linux'
         ? utils.getLinuxDistribRelease()
         : process.platform == 'darwin'
-        ? ''
-        : '10'
+          ? ''
+          : '10'
     );
 
     const release = manifest.files[0];
 
-    let toolPath = await finder.find(manifest, arch);
-
+    let toolPath = await finder.find(manifest);
     if (!toolPath) {
       await installer.install(manifest.version, release);
-      toolPath = tc.find('swift', manifest.version, arch);
-      if (toolPath.length) {
-        toolPath = path.join(toolPath, '/usr/bin');
-      }
+      toolPath = await finder.find(manifest);
     }
 
     if (!toolPath) {

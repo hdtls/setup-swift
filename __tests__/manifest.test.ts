@@ -1,6 +1,6 @@
+import * as tc from '@actions/tool-cache';
 import * as mm from '../src/manifest';
 import fs from 'fs';
-import * as tc from '../src/tool-cache';
 
 jest.spyOn(fs, 'existsSync').mockReturnValue(true);
 jest.spyOn(tc, 'downloadTool').mockReturnValue(Promise.resolve(''));

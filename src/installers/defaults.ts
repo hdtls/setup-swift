@@ -2,7 +2,7 @@ import * as core from '@actions/core';
 import * as exec from '@actions/exec';
 import * as path from 'path';
 import * as gpg from '../gpg';
-import * as tc from '../tool-cache';
+import * as tc from '@actions/tool-cache';
 import * as utils from '../utils';
 
 /**
@@ -24,6 +24,7 @@ export async function install(version: string, release: tc.IToolReleaseFile) {
   let extractPath = await tc.extractTar(archivePath);
   extractPath = path.join(extractPath, release.filename.replace('.tar.gz', ''));
 
+  // TODO: Resolve version
   await tc.cacheDir(extractPath, 'swift', version);
 }
 

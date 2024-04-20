@@ -4,7 +4,7 @@ import * as io from '@actions/io';
 import * as path from 'path';
 import fs from 'fs';
 import * as finder from '../src/finder';
-import * as tc from '../src/tool-cache';
+import * as tc from '@actions/tool-cache';
 import * as toolchains from '../src/toolchains';
 
 const systemLibrary = path.join(__dirname, 'TEMP', 'System');

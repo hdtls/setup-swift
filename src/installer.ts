@@ -1,4 +1,4 @@
-import * as tc from './tool-cache';
+import * as tc from '@actions/tool-cache';
 import * as amazonlinux from './installers/amazonlinux';
 import * as centos from './installers/centos';
 import * as darwin from './installers/darwin';

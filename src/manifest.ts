@@ -1,4 +1,4 @@
-import * as tc from './tool-cache';
+import * as tc from '@actions/tool-cache';
 import * as fs from 'fs';
 import { re, src, t, coerce } from './re';
 
