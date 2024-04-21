@@ -29484,9 +29484,10 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.exportVariables = exports.install = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const exec = __importStar(__nccwpck_require__(1514));
-const path = __importStar(__nccwpck_require__(1017));
-const gpg = __importStar(__nccwpck_require__(3759));
 const tc = __importStar(__nccwpck_require__(7784));
+const path = __importStar(__nccwpck_require__(1017));
+const formatter = __importStar(__nccwpck_require__(109));
+const gpg = __importStar(__nccwpck_require__(3759));
 const utils = __importStar(__nccwpck_require__(1314));
 /**
  * Download and install tools define in release file
@@ -29505,8 +29506,7 @@ function install(version, release) {
         yield gpg.verify(signature, archivePath);
         let extractPath = yield tc.extractTar(archivePath);
         extractPath = path.join(extractPath, release.filename.replace('.tar.gz', ''));
-        // TODO: Resolve version
-        yield tc.cacheDir(extractPath, 'swift', version);
+        yield tc.cacheDir(extractPath, 'swift', formatter.parse(version));
     });
 }
 exports.install = install;
