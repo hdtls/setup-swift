@@ -58,7 +58,7 @@ export async function exportVariables(
       break;
     default:
       throw new Error(
-        `Installing Swift on ${release.platform} is not supported yet`
+        `Export Swift variables on ${release.platform} is not supported yet`
       );
   }
 }

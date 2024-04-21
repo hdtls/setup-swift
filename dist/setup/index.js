@@ -29124,7 +29124,7 @@ function exportVariables(version, release, toolPath) {
                 yield ubuntu.exportVariables(version, toolPath);
                 break;
             default:
-                throw new Error(`Installing Swift on ${release.platform} is not supported yet`);
+                throw new Error(`Export Swift variables on ${release.platform} is not supported yet`);
         }
     });
 }
