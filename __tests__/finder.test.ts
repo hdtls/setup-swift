@@ -57,33 +57,7 @@ describe('finder', () => {
     await io.rmRF(path.join(__dirname, 'TEMP'));
   });
 
-  describe('unstable versions finding', () => {
-    it.each([
-      'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a',
-      'swift-DEVELOPMENT-SNAPSHOT-2023-04-11-a'
-    ])('found cached tool for %s', async versionSpec => {
-      const manifest = {
-        version: versionSpec,
-        stable: false,
-        release_url: '',
-        files: [
-          {
-            filename: '',
-            platform: 'ubuntu',
-            download_url: '',
-            arch: 'arm64',
-            platform_version: undefined
-          }
-        ]
-      };
-
-      tcfindSpy.mockReturnValueOnce(__dirname);
-      const expected = path.join(__dirname, '/usr/bin');
-      expect(await finder.find(manifest)).toEqual(expected);
-      expect(findInPathSpy).toHaveBeenCalledTimes(0);
-      expect(getExecOutputSpy).toHaveBeenCalledTimes(0);
-    });
-
+  describe('find unstable versions', () => {
     it.each([
       'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a',
       'swift-DEVELOPMENT-SNAPSHOT-2023-04-11-a'
@@ -104,14 +78,13 @@ describe('finder', () => {
       };
 
       expect(await finder.find(manifest)).toEqual('');
-      expect(findInPathSpy).toHaveBeenCalledTimes(0);
       expect(getExecOutputSpy).toHaveBeenCalledTimes(0);
     });
   });
 
-  describe('stable versions finding', () => {
+  describe('find stable versions', () => {
     it.each(['darwin', 'ubuntu', 'centos', 'amazonlinux'])(
-      '[%s] that does not have swift installed',
+      'on [%s] that does not have swift installed',
       async platform => {
         jest.spyOn(fs, 'existsSync').mockReturnValue(true);
         // darwin only
@@ -135,20 +108,18 @@ describe('finder', () => {
         };
         const actual = await finder.find(manifest);
 
-        expect(readdirSpy).toHaveBeenCalledTimes(platform == 'darwin' ? 3 : 0);
         if (platform == 'darwin') {
           expect(findInPathSpy).toHaveBeenCalledTimes(0);
         } else {
           expect(findInPathSpy).toHaveBeenCalled();
         }
         expect(getExecOutputSpy).toHaveBeenCalledTimes(0);
-        expect(tcfindSpy).toHaveBeenCalled();
         expect(actual).toEqual('');
       }
     );
 
     it.each(['ubuntu', 'centos', 'amazonlinux'])(
-      '[%s] with swift installed but version mismatch',
+      'on [%s] with swift installed but version mismatch',
       async () => {
         const manifest = {
           version: 'swift-5.8-RELEASE',
@@ -183,15 +154,13 @@ describe('finder', () => {
 
         const actual = await finder.find(manifest);
 
-        expect(readdirSpy).toHaveBeenCalledTimes(0);
         expect(findInPathSpy).toHaveBeenCalled();
-        expect(getExecOutputSpy).toHaveBeenCalled();
-        expect(tcfindSpy).toHaveBeenCalled();
+        expect(getExecOutputSpy).toHaveBeenCalledTimes(2);
         expect(actual).toEqual('');
       }
     );
 
-    it('[darwin] with swift installed but version mismatch', async () => {
+    it('on [darwin] with swift installed but version mismatch', async () => {
       // After each test userLibrary will be remove so we don't need remove subdirectory
       await io.mkdirP(
         path.join(userLibrary, 'swift-5.7.3-RELEASE.xctoolchain')
@@ -221,15 +190,38 @@ Target: x86_64-apple-macosx12.0`,
       };
       const actual = await finder.find(manifest);
 
-      expect(readdirSpy).toHaveBeenCalledTimes(3);
-      expect(findInPathSpy).toBeCalledTimes(0);
+      expect(findInPathSpy).toHaveBeenCalledTimes(0);
       expect(getExecOutputSpy).toHaveBeenCalledTimes(1);
-      expect(tcfindSpy).toHaveBeenCalled();
       expect(actual).toEqual('');
     });
 
+    it.each(['darwin', 'ubuntu', 'centos', 'amazonlinux'])(
+      'on [%s] with matched swift installed in toolcache',
+      () => {
+        tcfindSpy.mockReturnValue('/opt/hostedtoolcache/swift/5.10.0/x64');
+        const manifest = {
+          version: 'swift-5.10-RELEASE',
+          stable: true,
+          release_url: '',
+          files: [
+            {
+              filename: '',
+              platform: 'ubuntu',
+              download_url: '',
+              arch: '',
+              platform_version: undefined
+            }
+          ]
+        };
+        const toolPath = finder.find(manifest);
+        expect(findInPathSpy).toHaveBeenCalledTimes(0);
+        expect(getExecOutputSpy).toHaveBeenCalledTimes(0);
+        expect(toolPath).toBe('/opt/hostedtoolcache/swift/5.10.0/x64/usr/bin');
+      }
+    );
+
     it.each(['ubuntu', 'centos', 'amazonlinux'])(
-      '[%s] where swift is installed and the version matches',
+      'on [%s] with matched swift installed out of toolcache',
       async platform => {
         const manifest = {
           version: 'swift-5.8-RELEASE',
@@ -257,17 +249,15 @@ Target: x86_64-apple-macosx12.0`,
 
         const actual = await finder.find(manifest);
 
-        expect(readdirSpy).toHaveBeenCalledTimes(0);
         expect(findInPathSpy).toHaveBeenCalled();
         expect(getExecOutputSpy).toHaveBeenCalled();
         // Cached tool find in /usr/local/bin return immediatly return,
         // so tc.find will not be called
-        expect(tcfindSpy).toHaveBeenCalledTimes(0);
         expect(actual).toEqual('/usr/local/bin');
       }
     );
 
-    it('[darwin] where swift is installed and the version matches', async () => {
+    it('on [darwin] with matched swift installed out of toolcache', async () => {
       await io.mkdirP(path.join(userLibrary, 'swift-5.8-RELEASE.xctoolchain'));
 
       jest.spyOn(fs, 'existsSync').mockReturnValue(true);
@@ -294,10 +284,8 @@ Target: x86_64-apple-macosx12.0`,
       };
       const actual = await finder.find(manifest);
 
-      expect(readdirSpy).toHaveBeenCalledTimes(3);
-      expect(findInPathSpy).toBeCalledTimes(0);
+      expect(findInPathSpy).toHaveBeenCalledTimes(0);
       expect(getExecOutputSpy).toHaveBeenCalledTimes(1);
-      expect(tcfindSpy).toBeCalledTimes(0);
       expect(actual).toEqual(
         path.join(userLibrary, 'swift-5.8-RELEASE.xctoolchain', '/usr/bin')
       );
