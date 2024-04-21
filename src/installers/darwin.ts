@@ -35,25 +35,27 @@ export async function install(version: string, release: tc.IToolReleaseFile) {
  * @param toolPath installed tool path
  */
 export async function exportVariables(version: string, toolPath: string) {
-  // Remove /usr/bin
-  toolPath = toolPath.split('/').slice(0, -2).join('/');
-
   // Toolchains located in:
   //   /Library/Developer/Toolchains
   //   /Users/runner/Library/Developer/Toolchains
   //   /Applications/Xcode.app/Contents/Developer/Toolchains
   // are not maintained by setup-swift.
+  const systemLibrary = toolchains.getSystemToolchainsDirectory()
+  const userLibrary = toolchains.getToolchainsDirectory()
+  const xcodeLibrary = toolchains.getXcodeDefaultToolchainsDirectory()
+
   if (
-    !toolPath.startsWith(toolchains.getXcodeDefaultToolchainsDirectory()) &&
-    !toolPath.startsWith(toolchains.getSystemToolchainsDirectory()) &&
-    !toolPath.startsWith(toolchains.getToolchainsDirectory())
+    !toolPath.startsWith(systemLibrary) &&
+    !toolPath.startsWith(userLibrary) &&
+    !toolPath.startsWith(xcodeLibrary)
   ) {
-    if (!fs.existsSync(toolchains.getToolchainsDirectory())) {
-      await io.mkdirP(toolchains.getToolchainsDirectory());
+    if (!fs.existsSync(userLibrary)) {
+      await io.mkdirP(userLibrary);
     }
 
     const toolchain = toolchains.getToolchain(version);
     if (fs.existsSync(toolchain)) {
+      // Replace with tool-cache cached toolchain.
       await io.rmRF(toolchain);
     }
 
@@ -71,7 +73,6 @@ export async function exportVariables(version: string, toolPath: string) {
   core.exportVariable('TOOLCHAINS', TOOLCHAINS);
   core.setOutput('TOOLCHAINS', TOOLCHAINS);
 
-  toolPath = path.join(toolPath, '/usr/bin');
   const commandLine = path.join(toolPath, 'swift');
   const args = ['--version'];
   const options: exec.ExecOptions = { silent: true };

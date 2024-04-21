@@ -29386,21 +29386,23 @@ exports.install = install;
  */
 function exportVariables(version, toolPath) {
     return __awaiter(this, void 0, void 0, function* () {
-        // Remove /usr/bin
-        toolPath = toolPath.split('/').slice(0, -2).join('/');
         // Toolchains located in:
         //   /Library/Developer/Toolchains
         //   /Users/runner/Library/Developer/Toolchains
         //   /Applications/Xcode.app/Contents/Developer/Toolchains
         // are not maintained by setup-swift.
-        if (!toolPath.startsWith(toolchains.getXcodeDefaultToolchainsDirectory()) &&
-            !toolPath.startsWith(toolchains.getSystemToolchainsDirectory()) &&
-            !toolPath.startsWith(toolchains.getToolchainsDirectory())) {
-            if (!fs.existsSync(toolchains.getToolchainsDirectory())) {
-                yield io.mkdirP(toolchains.getToolchainsDirectory());
+        const systemLibrary = toolchains.getSystemToolchainsDirectory();
+        const userLibrary = toolchains.getToolchainsDirectory();
+        const xcodeLibrary = toolchains.getXcodeDefaultToolchainsDirectory();
+        if (!toolPath.startsWith(systemLibrary) &&
+            !toolPath.startsWith(userLibrary) &&
+            !toolPath.startsWith(xcodeLibrary)) {
+            if (!fs.existsSync(userLibrary)) {
+                yield io.mkdirP(userLibrary);
             }
             const toolchain = toolchains.getToolchain(version);
             if (fs.existsSync(toolchain)) {
+                // Replace with tool-cache cached toolchain.
                 yield io.rmRF(toolchain);
             }
             // Remove swift-latest.xctoolchain
@@ -29413,7 +29415,6 @@ function exportVariables(version, toolPath) {
         core.debug(`export TOOLCHAINS environment variable: ${TOOLCHAINS}`);
         core.exportVariable('TOOLCHAINS', TOOLCHAINS);
         core.setOutput('TOOLCHAINS', TOOLCHAINS);
-        toolPath = path.join(toolPath, '/usr/bin');
         const commandLine = path.join(toolPath, 'swift');
         const args = ['--version'];
         const options = { silent: true };

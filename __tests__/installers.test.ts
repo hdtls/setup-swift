@@ -11,8 +11,8 @@ import * as centos from '../src/installers/centos';
 import * as darwin from '../src/installers/darwin';
 import * as ubuntu from '../src/installers/ubuntu';
 import * as linux from '../src/installers/defaults';
-import * as toolchains from '../src/toolchains';
 import * as gpg from '../src/gpg';
+import * as toolchains from '../src/toolchains';
 
 const TOOLCHAINS = 'org.swift.573202201171a';
 const contents = `<?xml version="1.0" encoding="UTF-8"?>
@@ -57,6 +57,9 @@ const contents = `<?xml version="1.0" encoding="UTF-8"?>
 `;
 const tempDir = path.join(__dirname, 'TEMP');
 const cacheDir = path.join(__dirname, 'TOOL_CACHE');
+const systemLibrary = path.join(__dirname, 'TEMP', 'System');
+const userLibrary = path.join(__dirname, 'TEMP', 'User');
+const xcodeLibrary = path.join(__dirname, 'TEMP', 'Xcode');
 
 describe('installers', () => {
   let stdoutSpy: jest.SpyInstance;
@@ -130,18 +133,16 @@ describe('installers', () => {
     };
   }
 
-  function _assertExportVariables(toolPath: string, version?: string) {
+  function _assertExportVariables(toolPath: string, version: string) {
     expect(stdoutSpy).toHaveBeenCalledWith(`::add-path::${toolPath}${os.EOL}`);
     expect(stdoutSpy).toHaveBeenCalledWith(
       `::set-output name=swift-path::${path.join(toolPath, 'swift')}${os.EOL}`
     );
     expect(stdoutSpy).toHaveBeenCalledWith(
-      `::set-output name=swift-version::${version || '5.7.3'}${os.EOL}`
+      `::set-output name=swift-version::${version}${os.EOL}`
     );
     expect(coreInfoSpy).toHaveBeenCalledWith(
-      `Successfully set up Swift ${version || '5.7.3'} (swift-${
-        version || '5.7.3'
-      }-RELEASE)`
+      `Successfully set up Swift ${version} (swift-${version}-RELEASE)`
     );
   }
 
@@ -240,7 +241,7 @@ describe('installers', () => {
       const release = _getReleaseFile('ubuntu');
       const toolPath = path.join(cacheDir, 'swift/5.7.3/x64/usr/bin');
       await installer.exportVariables(`swift-5.7.3-RELEASE`, release, toolPath);
-      _assertExportVariables(toolPath);
+      _assertExportVariables(toolPath, '5.7.3');
     });
 
     it.each([
@@ -253,44 +254,36 @@ describe('installers', () => {
 
       await installer.exportVariables(`swift-5.7.3-RELEASE`, toolPath);
 
-      _assertExportVariables(toolPath);
+      _assertExportVariables(toolPath, '5.7.3');
     });
   });
 
   describe('export Swift variables using darwin installer', () => {
     let existsSpy: jest.SpyInstance;
-    let readFileSpy: jest.SpyInstance;
     let symlinkSpy: jest.SpyInstance;
     let mkdirPSpy: jest.SpyInstance;
     let rmRFSpy: jest.SpyInstance;
 
-    // beforeEach(() => {
-    //   existsSpy = jest.spyOn(fs, 'existsSync');
-    //   existsSpy.mockReturnValue(true);
-    //   readFileSpy = jest.spyOn(fs, 'readFileSync');
-    //   readFileSpy.mockReturnValue(contents);
-    //   symlinkSpy = jest.spyOn(fs, 'symlinkSync');
-    //   symlinkSpy.mockImplementation(() => {});
-    //   mkdirPSpy = jest.spyOn(io, 'mkdirP');
-    //   mkdirPSpy.mockImplementation(
-    //     () =>
-    //       new Promise<void>((resolve, reject) => {
-    //         resolve(void 0);
-    //       })
-    //   );
-    //   rmRFSpy = jest.spyOn(io, 'rmRF');
-    //   rmRFSpy.mockImplementation(
-    //     () =>
-    //       new Promise<void>((resolve, reject) => {
-    //         resolve(void 0);
-    //       })
-    //   );
-    //   jest
-    //     .spyOn(toolchains, 'getToolchainsDirectory')
-    //     .mockReturnValue(path.join(__dirname, 'TEMP'));
-    // });
+    beforeEach(() => {
+      existsSpy = jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+      //   readFileSpy = jest.spyOn(fs, 'readFileSync');
+      //   readFileSpy.mockReturnValue(contents);
+      symlinkSpy = jest.spyOn(fs, 'symlinkSync').mockImplementation(() => {});
+      mkdirPSpy = jest.spyOn(io, 'mkdirP').mockResolvedValue(void 0);
+      rmRFSpy = jest.spyOn(io, 'rmRF').mockResolvedValue(void 0);
+      jest
+        .spyOn(toolchains, 'getSystemToolchainsDirectory')
+        .mockReturnValue(systemLibrary);
+      jest
+        .spyOn(toolchains, 'getToolchainsDirectory')
+        .mockReturnValue(userLibrary);
+      jest
+        .spyOn(toolchains, 'getXcodeDefaultToolchainsDirectory')
+        .mockReturnValue(xcodeLibrary);
+      jest.spyOn(fs, 'readFileSync').mockReturnValue(contents);
+    });
 
-    function _assertExportVariablesOnDarwin(toolPath: string) {
+    function _assertExportVariablesOnDarwin(toolPath: string, version: string) {
       expect(coreDebugSpy).toHaveBeenCalledWith(
         `export TOOLCHAINS environment variable: ${TOOLCHAINS}`
       );
@@ -303,177 +296,125 @@ describe('installers', () => {
       expect(stdoutSpy).toHaveBeenCalledWith(
         `::set-output name=TOOLCHAINS::${TOOLCHAINS}${os.EOL}`
       );
-      _assertExportVariables(toolPath);
+      _assertExportVariables(toolPath, version);
     }
 
-    // describe('unmaintained', () => {
-    //   it.each([
-    //     [
-    //       '/Library/Developer/Toolchains',
-    //       path.join(
-    //         toolchains.getSystemToolchainsDirectory(),
-    //         '/swift-5.7.3-RELEASE/usr/bin'
-    //       )
-    //     ],
-    //     [
-    //       'Users/runner/Library/Developer/Toolchains',
-    //       path.join(
-    //         __dirname,
-    //         'TEMP',
-    //         '/swift-5.7.1-RELEASE.xctoolchain/usr/bin'
-    //       )
-    //     ],
-    //     [
-    //       'Xcode default toolchains',
-    //       path.join(
-    //         toolchains.getXcodeDefaultToolchainsDirectory(),
-    //         '/swift-5.7.3-RELEASE/usr/bin'
-    //       )
-    //     ]
-    //   ])('toolchain is in the %s', async (scope, toolchain) => {
-    //     const toolPath = toolchain.split('/').slice(0, -2).join('/');
-    //     const expectedToolPath = path.join(toolPath, '/usr/bin');
-    //     const release = _getReleaseFile('darwin');
+    describe('unmaintained', () => {
+      it.each([
+        [
+          systemLibrary,
+          path.join(systemLibrary, '/swift-5.7.3-RELEASE.xctoolchain/usr/bin')
+        ],
+        [
+          userLibrary,
+          path.join(userLibrary, '/swift-5.7.3-RELEASE.xctoolchain/usr/bin')
+        ],
+        [
+          'Xcode default toolchains',
+          path.join(xcodeLibrary, '/Defaualt.xctoolchain/usr/bin')
+        ]
+      ])('toolchain is in the %s', async (scope, toolPath) => {
+        await darwin.exportVariables(`swift-5.7.3-RELEASE`, toolPath);
 
-    //     await installer.exportVariables(
-    //       `swift-5.7.3-RELEASE`,
-    //       release,
-    //       toolchain
-    //     );
+        expect(existsSpy).toHaveBeenCalledTimes(1);
+        expect(mkdirPSpy).toHaveBeenCalledTimes(0);
+        expect(rmRFSpy).toHaveBeenCalledTimes(0);
+        expect(symlinkSpy).toHaveBeenCalledTimes(0);
+        _assertExportVariablesOnDarwin(toolPath, '5.7.3');
+      });
+    });
 
-    //     expect(existsSpy).toHaveBeenCalledTimes(1);
-    //     expect(mkdirPSpy).toHaveBeenCalledTimes(0);
-    //     expect(rmRFSpy).toHaveBeenCalledTimes(0);
-    //     expect(symlinkSpy).toHaveBeenCalledTimes(0);
-    //     _assertExportVariablesOnDarwin(expectedToolPath);
-    //   });
-    // });
+    describe('that swift is cached in tool-cache)', () => {
+      describe('user toolchains does not exists', () => {
+        it('should create user toolchains directory', async () => {
+          const toolPath = '/opt/hostedtoolcache/swift/5.7.3/x64/usr/bin';
 
-    // describe('maintained (tool cache)', () => {
-    //   describe('user toolchains does not exists', () => {
-    //     it('should create user toolchains directory', async () => {
-    //       const toolchain = '/opt/hostedtoolcache/swift/5.7.3/x64/usr/bin';
-    //       const release = _getReleaseFile('darwin');
-    //       const toolPath = toolchain.split('/').slice(0, -2).join('/');
-    //       const expectedToolPath = path.join(toolPath, '/usr/bin');
+          // user toolchains dir not exists so subdir is the same.
+          existsSpy
+            .mockReturnValueOnce(false)
+            .mockReturnValueOnce(false)
+            // Does not contains swift-latest.xctoolchain
+            .mockReturnValueOnce(false);
 
-    //       // user toolchains dir not exists so subdir is the same.
-    //       existsSpy
-    //         .mockReturnValueOnce(false)
-    //         .mockReturnValueOnce(false)
-    //         .mockReturnValueOnce(false);
+          await darwin.exportVariables(`swift-5.7.3-RELEASE`, toolPath);
 
-    //       await installer.exportVariables(
-    //         `swift-5.7.3-RELEASE`,
-    //         release,
-    //         toolchain
-    //       );
+          expect(existsSpy).toHaveBeenCalledTimes(4);
+          expect(mkdirPSpy).toHaveBeenCalledTimes(1);
+          expect(rmRFSpy).toHaveBeenCalledTimes(0);
+          expect(symlinkSpy).toHaveBeenCalledTimes(1);
+          _assertExportVariablesOnDarwin(toolPath, '5.7.3');
+        });
+      });
 
-    //       expect(existsSpy).toHaveBeenCalledTimes(4);
-    //       expect(mkdirPSpy).toHaveBeenCalledTimes(1);
-    //       expect(rmRFSpy).toHaveBeenCalledTimes(0);
-    //       expect(symlinkSpy).toHaveBeenCalledTimes(1);
-    //       _assertExportVariablesOnDarwin(expectedToolPath);
-    //     });
-    //   });
+      describe('user toolchains exists', () => {
+        it('toolchain with same version exists swift-latest symblink does not exists', async () => {
+          const toolPath = '/opt/hostedtoolcache/swift/5.7.3/x64/usr/bin';
 
-    //   describe('user toolchains exists', () => {
-    //     it('toolchain with same version exists swift-latest symblink does not exists', async () => {
-    //       const toolchain = '/opt/hostedtoolcache/swift/5.7.3/x64/usr/bin';
-    //       const release = _getReleaseFile('darwin');
-    //       const toolPath = toolchain.split('/').slice(0, -2).join('/');
-    //       const expectedToolPath = path.join(toolPath, '/usr/bin');
+          existsSpy
+            .mockReturnValueOnce(true)
+            .mockReturnValueOnce(true)
+            .mockReturnValueOnce(false);
 
-    //       existsSpy
-    //         .mockReturnValueOnce(true)
-    //         .mockReturnValueOnce(true)
-    //         .mockReturnValueOnce(false);
+          await darwin.exportVariables(`swift-5.7.3-RELEASE`, toolPath);
 
-    //       await installer.exportVariables(
-    //         `swift-5.7.3-RELEASE`,
-    //         release,
-    //         toolchain
-    //       );
+          expect(existsSpy).toHaveBeenCalledTimes(4);
+          expect(mkdirPSpy).toHaveBeenCalledTimes(0);
+          expect(rmRFSpy).toHaveBeenCalledTimes(1);
+          expect(symlinkSpy).toHaveBeenCalledTimes(1);
+          _assertExportVariablesOnDarwin(toolPath, '5.7.3');
+        });
 
-    //       expect(existsSpy).toHaveBeenCalledTimes(4);
-    //       expect(mkdirPSpy).toHaveBeenCalledTimes(0);
-    //       expect(rmRFSpy).toHaveBeenCalledTimes(1);
-    //       expect(symlinkSpy).toHaveBeenCalledTimes(1);
-    //       _assertExportVariablesOnDarwin(expectedToolPath);
-    //     });
+        it('toolchain with same version exists swift-latest symblink also exists', async () => {
+          const toolPath = '/opt/hostedtoolcache/swift/5.7.3/x64/usr/bin';
 
-    //     it('toolchain with same version exists swift-latest symblink also exists', async () => {
-    //       const toolchain = '/opt/hostedtoolcache/swift/5.7.3/x64/usr/bin';
-    //       const release = _getReleaseFile('darwin');
-    //       const toolPath = toolchain.split('/').slice(0, -2).join('/');
-    //       const expectedToolPath = path.join(toolPath, '/usr/bin');
+          existsSpy
+            .mockReturnValueOnce(true)
+            .mockReturnValueOnce(true)
+            .mockReturnValueOnce(true);
 
-    //       existsSpy
-    //         .mockReturnValueOnce(true)
-    //         .mockReturnValueOnce(true)
-    //         .mockReturnValueOnce(true);
+          await darwin.exportVariables(`swift-5.7.3-RELEASE`, toolPath);
 
-    //       await installer.exportVariables(
-    //         `swift-5.7.3-RELEASE`,
-    //         release,
-    //         toolchain
-    //       );
+          expect(existsSpy).toHaveBeenCalledTimes(4);
+          expect(mkdirPSpy).toHaveBeenCalledTimes(0);
+          expect(rmRFSpy).toHaveBeenCalledTimes(2);
+          expect(symlinkSpy).toHaveBeenCalledTimes(1);
+          _assertExportVariablesOnDarwin(toolPath, '5.7.3');
+        });
 
-    //       expect(existsSpy).toHaveBeenCalledTimes(4);
-    //       expect(mkdirPSpy).toHaveBeenCalledTimes(0);
-    //       expect(rmRFSpy).toHaveBeenCalledTimes(2);
-    //       expect(symlinkSpy).toHaveBeenCalledTimes(1);
-    //       _assertExportVariablesOnDarwin(expectedToolPath);
-    //     });
+        it('toolchain with same version does not exists but swift-latest symblink exists', async () => {
+          const toolPath = '/opt/hostedtoolcache/swift/5.7.3/x64/usr/bin';
 
-    //     it('toolchain with same version does not exists but swift-latest symblink exists', async () => {
-    //       const toolchain = '/opt/hostedtoolcache/swift/5.7.3/x64/usr/bin';
-    //       const release = _getReleaseFile('darwin');
-    //       const toolPath = toolchain.split('/').slice(0, -2).join('/');
-    //       const expectedToolPath = path.join(toolPath, '/usr/bin');
+          existsSpy
+            .mockReturnValueOnce(true)
+            .mockReturnValueOnce(false)
+            .mockReturnValueOnce(true);
 
-    //       existsSpy
-    //         .mockReturnValueOnce(true)
-    //         .mockReturnValueOnce(false)
-    //         .mockReturnValueOnce(true);
+          await darwin.exportVariables(`swift-5.7.3-RELEASE`, toolPath);
 
-    //       await installer.exportVariables(
-    //         `swift-5.7.3-RELEASE`,
-    //         release,
-    //         toolchain
-    //       );
+          expect(existsSpy).toHaveBeenCalledTimes(4);
+          expect(mkdirPSpy).toHaveBeenCalledTimes(0);
+          expect(rmRFSpy).toHaveBeenCalledTimes(1);
+          expect(symlinkSpy).toHaveBeenCalledTimes(1);
+          _assertExportVariablesOnDarwin(toolPath, '5.7.3');
+        });
 
-    //       expect(existsSpy).toHaveBeenCalledTimes(4);
-    //       expect(mkdirPSpy).toHaveBeenCalledTimes(0);
-    //       expect(rmRFSpy).toHaveBeenCalledTimes(1);
-    //       expect(symlinkSpy).toHaveBeenCalledTimes(1);
-    //       _assertExportVariablesOnDarwin(expectedToolPath);
-    //     });
+        it('both toolchain with same version and swift-latest symblink does not exists', async () => {
+          const toolPath = '/opt/hostedtoolcache/swift/5.7.3/x64/usr/bin';
 
-    //     it('both toolchain with same version and swift-latest symblink does not exists', async () => {
-    //       const toolchain = '/opt/hostedtoolcache/swift/5.7.3/x64/usr/bin';
-    //       const release = _getReleaseFile('darwin');
-    //       const toolPath = toolchain.split('/').slice(0, -2).join('/');
-    //       const expectedToolPath = path.join(toolPath, '/usr/bin');
+          existsSpy
+            .mockReturnValueOnce(true)
+            .mockReturnValueOnce(false)
+            .mockReturnValueOnce(false);
 
-    //       existsSpy
-    //         .mockReturnValueOnce(true)
-    //         .mockReturnValueOnce(false)
-    //         .mockReturnValueOnce(false);
+          await darwin.exportVariables(`swift-5.7.3-RELEASE`, toolPath);
 
-    //       await installer.exportVariables(
-    //         `swift-5.7.3-RELEASE`,
-    //         release,
-    //         toolchain
-    //       );
-
-    //       expect(existsSpy).toHaveBeenCalledTimes(4);
-    //       expect(mkdirPSpy).toHaveBeenCalledTimes(0);
-    //       expect(rmRFSpy).toHaveBeenCalledTimes(0);
-    //       expect(symlinkSpy).toHaveBeenCalledTimes(1);
-    //       _assertExportVariablesOnDarwin(expectedToolPath);
-    //     });
-    //   });
-    // });
+          expect(existsSpy).toHaveBeenCalledTimes(4);
+          expect(mkdirPSpy).toHaveBeenCalledTimes(0);
+          expect(rmRFSpy).toHaveBeenCalledTimes(0);
+          expect(symlinkSpy).toHaveBeenCalledTimes(1);
+          _assertExportVariablesOnDarwin(toolPath, '5.7.3');
+        });
+      });
+    });
   });
 });
