@@ -28921,7 +28921,6 @@ function find(manifest_1) {
                     }
                 }
                 catch (error) { }
-                core.debug('Not found');
             }
         }
         core.info(`Version ${manifest.version} was not found in the local cache`);

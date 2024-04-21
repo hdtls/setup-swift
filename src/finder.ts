@@ -120,7 +120,6 @@ export async function find(
           return toolPath;
         }
       } catch (error) {}
-      core.debug('Not found');
     }
   }
 
