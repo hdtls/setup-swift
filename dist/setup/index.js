@@ -28816,7 +28816,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.find = void 0;
+exports._getAllToolchains = exports.find = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const exec = __importStar(__nccwpck_require__(1514));
 const io = __importStar(__nccwpck_require__(7436));
@@ -28833,7 +28833,7 @@ const re_1 = __nccwpck_require__(1075);
  *
  * @param manifest  info of the tool
  * @param arch      optional arch. defaults to arch of computer
- * @returns         path for the founded tool. return empty if not found
+ * @returns         path where executable file located. return empty if not found
  */
 function find(manifest_1) {
     return __awaiter(this, arguments, void 0, function* (manifest, arch = os.arch()) {
@@ -28844,83 +28844,41 @@ function find(manifest_1) {
             return path.join(toolPath, '/usr/bin');
         }
         // System-wide lookups for nightly versions will be ignored.
-        if (re_1.re[re_1.t.SWIFTRELEASE].test(manifest.version)) {
-            let toolPaths = [];
-            // Platform specified system-wide finding.
-            switch (manifest.files[0].platform) {
-                case 'darwin':
-                    /**
-                     * Find toolchains located in:
-                     *   /Library/Developer/Toolchains
-                     *   /Users/runner/Library/Developer/Toolchains
-                     *   /Applications/Xcode.app/Contents/Developer/Toolchains
-                     */
-                    try {
-                        try {
-                            toolPaths = fs
-                                .readdirSync(toolchains.getSystemToolchainsDirectory())
-                                .filter(toolchain => toolchain.endsWith('.xctoolchain'))
-                                .map(toolchain => path.join(toolchains.getSystemToolchainsDirectory(), toolchain))
-                                .concat(toolPaths);
-                        }
-                        catch (error) { }
-                        try {
-                            toolPaths = fs
-                                .readdirSync(toolchains.getToolchainsDirectory())
-                                .filter(toolchain => toolchain.endsWith('.xctoolchain'))
-                                .map(toolchain => path.join(toolchains.getToolchainsDirectory(), toolchain))
-                                .concat(toolPaths);
-                        }
-                        catch (error) { }
-                        try {
-                            toolPaths = fs
-                                .readdirSync(toolchains.getXcodeDefaultToolchainsDirectory())
-                                .filter(toolchain => toolchain.endsWith('.xctoolchain'))
-                                .map(toolchain => path.join(toolchains.getXcodeDefaultToolchainsDirectory(), toolchain))
-                                .concat(toolPaths);
-                        }
-                        catch (error) { }
-                        toolPaths = toolPaths
-                            .filter(toolPath => {
-                            try {
-                                const commandLine = path.join(toolPath, '/usr/bin/swift');
-                                return fs.existsSync(commandLine);
-                            }
-                            catch (error) {
-                                return false;
-                            }
-                        })
-                            .map(toolPath => path.join(toolPath, '/usr/bin'));
-                    }
-                    catch (error) { }
-                    break;
-                case 'ubuntu':
-                case 'centos':
-                case 'amazonlinux':
-                    try {
-                        toolPaths = (yield io.findInPath('swift')).map(commandLine => {
-                            return commandLine.split('/').slice(0, -1).join('/');
-                        });
-                    }
-                    catch (error) { }
-                    break;
-                default:
-                    break;
-            }
-            // Check user installed...
-            for (const toolPath of toolPaths) {
-                core.debug(`Checking installed tool in ${toolPath}`);
-                const commandLine = path.join(toolPath, 'swift');
-                const options = { silent: true };
-                try {
-                    const { stdout } = yield exec.getExecOutput(commandLine, ['--version'], options);
-                    if (utils.extractVerFromLogMessage(stdout) ==
-                        manifest.version.replace(re_1.re[re_1.t.SWIFTRELEASE], '$1')) {
-                        core.debug(`Found tool in ${toolPath} ${manifest.version} ${arch}`);
-                        return toolPath;
-                    }
+        if (!re_1.re[re_1.t.SWIFTRELEASE].test(manifest.version)) {
+            core.info(`Version ${manifest.version} was not found in the local cache`);
+            return '';
+        }
+        let toolPaths = [];
+        // Platform specified system-wide finding.
+        switch (manifest.files[0].platform) {
+            case 'darwin':
+                toolPaths = _getAllToolchains();
+                // Filter toolchains who's name contains version
+                const matched = toolPaths.filter(e => e.indexOf(manifest.version) > -1);
+                if (matched.length) {
+                    return matched[0];
                 }
-                catch (error) { }
+                break;
+            case 'ubuntu':
+            case 'centos':
+            case 'amazonlinux':
+                toolPaths = (yield io.findInPath('swift')).map(commandLine => {
+                    return commandLine.split('/').slice(0, -1).join('/');
+                });
+                break;
+            default:
+                break;
+        }
+        // Check user installed...
+        for (const toolPath of toolPaths) {
+            core.debug(`Checking installed tool in ${toolPath}`);
+            const commandLine = path.join(toolPath, 'swift');
+            const options = { silent: true };
+            const { stdout } = yield exec.getExecOutput(commandLine, ['--version'], options);
+            if (utils.extractVerFromLogMessage(stdout) ==
+                manifest.version.replace(re_1.re[re_1.t.SWIFTRELEASE], '$1')) {
+                core.debug(`Found tool in ${toolPath} ${manifest.version} ${arch}`);
+                return toolPath;
             }
         }
         core.info(`Version ${manifest.version} was not found in the local cache`);
@@ -28928,6 +28886,35 @@ function find(manifest_1) {
     });
 }
 exports.find = find;
+/**
+ * Find toolchains located in:
+ *   /Library/Developer/Toolchains
+ *   /Users/runner/Library/Developer/Toolchains
+ *   /Applications/Xcode.app/Contents/Developer/Toolchains
+ */
+function _getAllToolchains() {
+    const systemLibrary = toolchains.getSystemToolchainsDirectory();
+    const userLibrary = toolchains.getToolchainsDirectory();
+    const xcodeLibrary = toolchains.getXcodeDefaultToolchainsDirectory();
+    return fs
+        .readdirSync(systemLibrary, { withFileTypes: true })
+        .concat(fs.readdirSync(userLibrary, { withFileTypes: true }))
+        .concat(fs.readdirSync(xcodeLibrary, { withFileTypes: true }))
+        .filter(dirent => {
+        if (dirent.isDirectory() && dirent.name.endsWith('.xctoolchain')) {
+            try {
+                const commandLine = path.join(dirent.path, dirent.name, '/usr/bin/swift');
+                return fs.existsSync(commandLine);
+            }
+            catch (_a) {
+                return false;
+            }
+        }
+        return false;
+    })
+        .map(dirent => path.join(dirent.path, dirent.name, 'usr/bin'));
+}
+exports._getAllToolchains = _getAllToolchains;
 
 
 /***/ }),

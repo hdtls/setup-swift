@@ -15,12 +15,12 @@ import { re, t } from './re';
  *
  * @param manifest  info of the tool
  * @param arch      optional arch. defaults to arch of computer
- * @returns         path for the founded tool. return empty if not found
+ * @returns         path where executable file located. return empty if not found
  */
 export async function find(
   manifest: tc.IToolRelease,
   arch: string = os.arch()
-) {
+): Promise<string> {
   // Check setup-swift action installed...
   let version = formatter.parse(manifest.version);
   let toolPath = tc.find('swift', version, arch);
@@ -29,100 +29,87 @@ export async function find(
   }
 
   // System-wide lookups for nightly versions will be ignored.
-  if (re[t.SWIFTRELEASE].test(manifest.version)) {
-    let toolPaths: string[] = [];
+  if (!re[t.SWIFTRELEASE].test(manifest.version)) {
+    core.info(`Version ${manifest.version} was not found in the local cache`);
+    return '';
+  }
 
-    // Platform specified system-wide finding.
-    switch (manifest.files[0].platform) {
-      case 'darwin':
-        /**
-         * Find toolchains located in:
-         *   /Library/Developer/Toolchains
-         *   /Users/runner/Library/Developer/Toolchains
-         *   /Applications/Xcode.app/Contents/Developer/Toolchains
-         */
-        try {
-          try {
-            toolPaths = fs
-              .readdirSync(toolchains.getSystemToolchainsDirectory())
-              .filter(toolchain => toolchain.endsWith('.xctoolchain'))
-              .map(toolchain =>
-                path.join(toolchains.getSystemToolchainsDirectory(), toolchain)
-              )
-              .concat(toolPaths);
-          } catch (error) {}
+  let toolPaths: string[] = [];
 
-          try {
-            toolPaths = fs
-              .readdirSync(toolchains.getToolchainsDirectory())
-              .filter(toolchain => toolchain.endsWith('.xctoolchain'))
-              .map(toolchain =>
-                path.join(toolchains.getToolchainsDirectory(), toolchain)
-              )
-              .concat(toolPaths);
-          } catch (error) {}
+  // Platform specified system-wide finding.
+  switch (manifest.files[0].platform) {
+    case 'darwin':
+      toolPaths = _getAllToolchains();
+      // Filter toolchains who's name contains version
+      const matched = toolPaths.filter(e => e.indexOf(manifest.version) > -1);
+      if (matched.length) {
+        return matched[0];
+      }
+      break;
+    case 'ubuntu':
+    case 'centos':
+    case 'amazonlinux':
+      toolPaths = (await io.findInPath('swift')).map(commandLine => {
+        return commandLine.split('/').slice(0, -1).join('/');
+      });
+      break;
+    default:
+      break;
+  }
 
-          try {
-            toolPaths = fs
-              .readdirSync(toolchains.getXcodeDefaultToolchainsDirectory())
-              .filter(toolchain => toolchain.endsWith('.xctoolchain'))
-              .map(toolchain =>
-                path.join(
-                  toolchains.getXcodeDefaultToolchainsDirectory(),
-                  toolchain
-                )
-              )
-              .concat(toolPaths);
-          } catch (error) {}
+  // Check user installed...
+  for (const toolPath of toolPaths) {
+    core.debug(`Checking installed tool in ${toolPath}`);
+    const commandLine = path.join(toolPath, 'swift');
+    const options: exec.ExecOptions = { silent: true };
+    const { stdout } = await exec.getExecOutput(
+      commandLine,
+      ['--version'],
+      options
+    );
 
-          toolPaths = toolPaths
-            .filter(toolPath => {
-              try {
-                const commandLine = path.join(toolPath, '/usr/bin/swift');
-                return fs.existsSync(commandLine);
-              } catch (error) {
-                return false;
-              }
-            })
-            .map(toolPath => path.join(toolPath, '/usr/bin'));
-        } catch (error) {}
-        break;
-      case 'ubuntu':
-      case 'centos':
-      case 'amazonlinux':
-        try {
-          toolPaths = (await io.findInPath('swift')).map(commandLine => {
-            return commandLine.split('/').slice(0, -1).join('/');
-          });
-        } catch (error) {}
-        break;
-      default:
-        break;
-    }
-
-    // Check user installed...
-    for (const toolPath of toolPaths) {
-      core.debug(`Checking installed tool in ${toolPath}`);
-      const commandLine = path.join(toolPath, 'swift');
-      const options: exec.ExecOptions = { silent: true };
-      try {
-        const { stdout } = await exec.getExecOutput(
-          commandLine,
-          ['--version'],
-          options
-        );
-
-        if (
-          utils.extractVerFromLogMessage(stdout) ==
-          manifest.version.replace(re[t.SWIFTRELEASE], '$1')
-        ) {
-          core.debug(`Found tool in ${toolPath} ${manifest.version} ${arch}`);
-          return toolPath;
-        }
-      } catch (error) {}
+    if (
+      utils.extractVerFromLogMessage(stdout) ==
+      manifest.version.replace(re[t.SWIFTRELEASE], '$1')
+    ) {
+      core.debug(`Found tool in ${toolPath} ${manifest.version} ${arch}`);
+      return toolPath;
     }
   }
 
   core.info(`Version ${manifest.version} was not found in the local cache`);
   return '';
+}
+
+/**
+ * Find toolchains located in:
+ *   /Library/Developer/Toolchains
+ *   /Users/runner/Library/Developer/Toolchains
+ *   /Applications/Xcode.app/Contents/Developer/Toolchains
+ */
+export function _getAllToolchains(): string[] {
+  const systemLibrary = toolchains.getSystemToolchainsDirectory();
+  const userLibrary = toolchains.getToolchainsDirectory();
+  const xcodeLibrary = toolchains.getXcodeDefaultToolchainsDirectory();
+
+  return fs
+    .readdirSync(systemLibrary, { withFileTypes: true })
+    .concat(fs.readdirSync(userLibrary, { withFileTypes: true }))
+    .concat(fs.readdirSync(xcodeLibrary, { withFileTypes: true }))
+    .filter(dirent => {
+      if (dirent.isDirectory() && dirent.name.endsWith('.xctoolchain')) {
+        try {
+          const commandLine = path.join(
+            dirent.path,
+            dirent.name,
+            '/usr/bin/swift'
+          );
+          return fs.existsSync(commandLine);
+        } catch {
+          return false;
+        }
+      }
+      return false;
+    })
+    .map(dirent => path.join(dirent.path, dirent.name, 'usr/bin'));
 }

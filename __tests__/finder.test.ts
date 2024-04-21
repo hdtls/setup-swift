@@ -1,8 +1,7 @@
-import * as core from '@actions/core';
 import * as exec from '@actions/exec';
 import * as io from '@actions/io';
-import * as path from 'path';
 import fs from 'fs';
+import * as path from 'path';
 import * as finder from '../src/finder';
 import * as tc from '@actions/tool-cache';
 import * as toolchains from '../src/toolchains';
@@ -14,10 +13,11 @@ const xcodeLibrary = path.join(__dirname, 'TEMP', 'Xcode');
 describe('finder', () => {
   let findInPathSpy: jest.SpyInstance;
   let getExecOutputSpy: jest.SpyInstance;
-  let tcfindSpy: jest.SpyInstance;
-  let readdirSpy: jest.SpyInstance;
+  let tcFindSpy: jest.SpyInstance;
 
   beforeEach(async () => {
+    console.log('::stop-commands::stoptoken'); // Disable executing of runner commands when running tests in actions
+
     await io.mkdirP(systemLibrary);
     await io.mkdirP(userLibrary);
     await io.mkdirP(xcodeLibrary);
@@ -32,18 +32,19 @@ describe('finder', () => {
       .spyOn(toolchains, 'getXcodeDefaultToolchainsDirectory')
       .mockReturnValue(xcodeLibrary);
 
-    findInPathSpy = jest.spyOn(io, 'findInPath').mockResolvedValue([]);
+    findInPathSpy = jest.spyOn(io, 'findInPath');
     getExecOutputSpy = jest.spyOn(exec, 'getExecOutput').mockResolvedValue({
       stdout: `Swift version 5.8 (swift-5.8-RELEASE)
         Target: x86_64-unknown-linux-gnu`,
       exitCode: 0,
       stderr: ''
     });
-    tcfindSpy = jest.spyOn(tc, 'find').mockReturnValue('');
-    readdirSpy = jest.spyOn(fs, 'readdirSync');
+    tcFindSpy = jest.spyOn(tc, 'find');
   });
 
   afterEach(async () => {
+    console.log('::stoptoken::'); // Re-enable executing of runner commands when running tests in actions
+
     await io.rmRF(systemLibrary);
     await io.rmRF(userLibrary);
     await io.rmRF(xcodeLibrary);
@@ -57,238 +58,127 @@ describe('finder', () => {
     await io.rmRF(path.join(__dirname, 'TEMP'));
   });
 
-  describe('find unstable versions', () => {
-    it.each([
-      'swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a',
-      'swift-DEVELOPMENT-SNAPSHOT-2023-04-11-a'
-    ])('cached tool for %s not found', async versionSpec => {
-      const manifest = {
-        version: versionSpec,
-        stable: false,
-        release_url: '',
-        files: [
-          {
-            filename: '',
-            platform: 'ubuntu',
-            download_url: '',
-            arch: 'arm64',
-            platform_version: undefined
-          }
-        ]
-      };
+  function _getManifest(
+    version: string,
+    platform: string,
+    stable: boolean = true
+  ): tc.IToolRelease {
+    return {
+      version: version,
+      stable: stable,
+      release_url: '',
+      files: [
+        {
+          filename: '',
+          platform: platform,
+          download_url: '',
+          arch: '',
+          platform_version: undefined
+        }
+      ]
+    };
+  }
 
-      expect(await finder.find(manifest)).toEqual('');
-      expect(getExecOutputSpy).toHaveBeenCalledTimes(0);
-    });
+  it('find specified version of Swift in tool-cache', async () => {
+    const expected = '/opt/hostedtoolcache/swift/5.8.0/x64/usr/bin';
+    // Result of tc.find should remove /usr/bin
+    tcFindSpy.mockReturnValue(expected.split('/').slice(0, -2).join('/'));
+
+    const manifest = _getManifest('swift-5.8-RELEASE', 'darwin');
+    const actual = await finder.find(manifest);
+
+    expect(actual).toBe(expected);
+    expect(getExecOutputSpy).toHaveBeenCalledTimes(0);
+    expect(findInPathSpy).toHaveBeenCalledTimes(0);
   });
 
-  describe('find stable versions', () => {
-    it.each(['darwin', 'ubuntu', 'centos', 'amazonlinux'])(
-      'on [%s] that does not have swift installed',
-      async platform => {
-        jest.spyOn(fs, 'existsSync').mockReturnValue(true);
-        // darwin only
-        jest.spyOn(fs, 'lstatSync').mockImplementationOnce(() => {
-          throw new Error('no such file or directory');
-        });
+  it.each(['amazonlinux', 'centos', 'ubuntu'])(
+    'find specified version of Swift outside of tool-cache on [%s]',
+    async platform => {
+      tcFindSpy.mockReturnValue('');
+      findInPathSpy
+        // Contains matched version of Swift.
+        .mockResolvedValueOnce(['/usr/bin/swift', '/usr/local/bin/swift'])
+        .mockResolvedValueOnce(['/usr/bin/swift'])
+        // Does not contains matched version of Swift.
+        .mockResolvedValueOnce(['/usr/bin/swift'])
+        // Does installed any version of Swift.
+        .mockResolvedValueOnce([]);
 
-        const manifest = {
-          version: 'swift-5.8-RELEASE',
-          stable: true,
-          release_url: '',
-          files: [
-            {
-              filename: '',
-              platform: platform,
-              download_url: '',
-              arch: '',
-              platform_version: undefined
-            }
-          ]
-        };
-        const actual = await finder.find(manifest);
+      const manifest = _getManifest('swift-5.8-RELEASE', platform);
+      let toolPath = await finder.find(manifest);
+      expect(toolPath).toBe('/usr/bin');
+      expect(findInPathSpy).toHaveBeenCalledTimes(1);
+      expect(getExecOutputSpy).toHaveBeenCalledTimes(1);
 
-        if (platform == 'darwin') {
-          expect(findInPathSpy).toHaveBeenCalledTimes(0);
-        } else {
-          expect(findInPathSpy).toHaveBeenCalled();
-        }
-        expect(getExecOutputSpy).toHaveBeenCalledTimes(0);
-        expect(actual).toEqual('');
-      }
-    );
+      toolPath = await finder.find(manifest);
+      expect(toolPath).toBe('/usr/bin');
+      expect(findInPathSpy).toHaveBeenCalledTimes(2);
+      expect(getExecOutputSpy).toHaveBeenCalledTimes(2);
 
-    it.each(['ubuntu', 'centos', 'amazonlinux'])(
-      'on [%s] with swift installed but version mismatch',
-      async () => {
-        const manifest = {
-          version: 'swift-5.8-RELEASE',
-          stable: true,
-          release_url: '',
-          files: [
-            {
-              filename: '',
-              platform: 'ubuntu',
-              download_url: '',
-              arch: '',
-              platform_version: undefined
-            }
-          ]
-        };
-
-        const toolPaths = ['/usr/bin', '/usr/local/bin'];
-        findInPathSpy.mockResolvedValueOnce(toolPaths);
-        getExecOutputSpy
-          .mockResolvedValueOnce({
-            stdout: `Swift version 5.7.3 (swift-5.7.3-RELEASE)
+      getExecOutputSpy.mockResolvedValue({
+        stdout: `Swift version 5.8.1 (swift-5.8.1-RELEASE)
         Target: x86_64-unknown-linux-gnu`,
-            exitCode: 0,
-            stderr: ''
-          })
-          .mockResolvedValueOnce({
-            stdout: `Swift version 5.7.1 (swift-5.7.1-RELEASE)
-        Target: x86_64-unknown-linux-gnu`,
-            exitCode: 0,
-            stderr: ''
-          });
-
-        const actual = await finder.find(manifest);
-
-        expect(findInPathSpy).toHaveBeenCalled();
-        expect(getExecOutputSpy).toHaveBeenCalledTimes(2);
-        expect(actual).toEqual('');
-      }
-    );
-
-    it('on [darwin] with swift installed but version mismatch', async () => {
-      // After each test userLibrary will be remove so we don't need remove subdirectory
-      await io.mkdirP(
-        path.join(userLibrary, 'swift-5.7.3-RELEASE.xctoolchain')
-      );
-
-      jest.spyOn(fs, 'existsSync').mockReturnValue(true);
-      getExecOutputSpy.mockResolvedValueOnce({
-        stdout: `Apple Swift version 5.7.3 (swift-5.7.3-RELEASE)
-Target: x86_64-apple-macosx12.0`,
         exitCode: 0,
         stderr: ''
       });
+      toolPath = await finder.find(manifest);
+      expect(toolPath).toBe('');
+      expect(findInPathSpy).toHaveBeenCalledTimes(3);
+      expect(getExecOutputSpy).toHaveBeenCalledTimes(3);
 
-      const manifest = {
-        version: 'swift-5.8-RELEASE',
-        stable: true,
-        release_url: '',
-        files: [
-          {
-            filename: '',
-            platform: 'darwin',
-            download_url: '',
-            arch: '',
-            platform_version: undefined
-          }
-        ]
-      };
-      const actual = await finder.find(manifest);
+      toolPath = await finder.find(manifest);
+      expect(toolPath).toBe('');
+      expect(findInPathSpy).toHaveBeenCalledTimes(4);
+      expect(getExecOutputSpy).toHaveBeenCalledTimes(3);
+    }
+  );
 
-      expect(findInPathSpy).toHaveBeenCalledTimes(0);
-      expect(getExecOutputSpy).toHaveBeenCalledTimes(1);
-      expect(actual).toEqual('');
-    });
+  it('find specified version of Swift outside of tool-cache on darwin', async () => {
+    tcFindSpy.mockReturnValue('');
 
-    it.each(['darwin', 'ubuntu', 'centos', 'amazonlinux'])(
-      'on [%s] with matched swift installed in toolcache',
-      () => {
-        tcfindSpy.mockReturnValue('/opt/hostedtoolcache/swift/5.10.0/x64');
-        const manifest = {
-          version: 'swift-5.10-RELEASE',
-          stable: true,
-          release_url: '',
-          files: [
-            {
-              filename: '',
-              platform: 'ubuntu',
-              download_url: '',
-              arch: '',
-              platform_version: undefined
-            }
-          ]
-        };
-        const toolPath = finder.find(manifest);
-        expect(findInPathSpy).toHaveBeenCalledTimes(0);
-        expect(getExecOutputSpy).toHaveBeenCalledTimes(0);
-        expect(toolPath).toBe('/opt/hostedtoolcache/swift/5.10.0/x64/usr/bin');
-      }
+    const manifest = _getManifest('swift-5.8-RELEASE', 'darwin');
+
+    let expected = path.join(
+      userLibrary,
+      'swift-5.8-RELEASE.xctoolchain/usr/bin'
     );
+    await io.mkdirP(expected);
+    fs.writeFileSync(path.join(expected, 'swift'), '');
+    let toolPath = await finder.find(manifest);
+    expect(getExecOutputSpy).toHaveBeenCalledTimes(0);
+    expect(toolPath).toBe(expected);
+    await io.rmRF(path.join(userLibrary, 'swift-5.8-RELEASE.xctoolchain'));
 
-    it.each(['ubuntu', 'centos', 'amazonlinux'])(
-      'on [%s] with matched swift installed out of toolcache',
-      async platform => {
-        const manifest = {
-          version: 'swift-5.8-RELEASE',
-          stable: true,
-          release_url: '',
-          files: [
-            {
-              filename: '',
-              platform: platform,
-              download_url: '',
-              arch: '',
-              platform_version: undefined
-            }
-          ]
-        };
+    // swift-latest.xctoolchain match specified version of swift.
+    expected = path.join(userLibrary, 'swift-latest.xctoolchain/usr/bin');
+    await io.mkdirP(expected);
+    fs.writeFileSync(path.join(expected, 'swift'), '');
+    toolPath = await finder.find(manifest);
+    expect(getExecOutputSpy).toHaveBeenCalledTimes(1);
+    expect(toolPath).toBe(expected);
+    await io.rmRF(userLibrary);
 
-        const toolPaths = ['/usr/bin/swift', '/usr/local/bin/swift'];
-        findInPathSpy.mockResolvedValueOnce(toolPaths);
-        getExecOutputSpy.mockResolvedValueOnce({
-          stdout: `Swift version 5.7.3 (swift-5.7.3-RELEASE)
+    // swift-latest.xctoolchain desn not match specified version of swift.
+    expected = path.join(userLibrary, 'swift-latest.xctoolchain/usr/bin');
+    await io.mkdirP(expected);
+    fs.writeFileSync(path.join(expected, 'swift'), '');
+    getExecOutputSpy.mockResolvedValue({
+      stdout: `Swift version 5.8.1 (swift-5.8.1-RELEASE)
         Target: x86_64-unknown-linux-gnu`,
-          exitCode: 0,
-          stderr: ''
-        });
-
-        const actual = await finder.find(manifest);
-
-        expect(findInPathSpy).toHaveBeenCalled();
-        expect(getExecOutputSpy).toHaveBeenCalled();
-        // Cached tool find in /usr/local/bin return immediatly return,
-        // so tc.find will not be called
-        expect(actual).toEqual('/usr/local/bin');
-      }
-    );
-
-    it('on [darwin] with matched swift installed out of toolcache', async () => {
-      await io.mkdirP(path.join(userLibrary, 'swift-5.8-RELEASE.xctoolchain'));
-
-      jest.spyOn(fs, 'existsSync').mockReturnValue(true);
-      getExecOutputSpy.mockResolvedValueOnce({
-        stdout: `Apple Swift version 5.8 (swift-5.8-RELEASE)
-Target: x86_64-apple-macosx12.0`,
-        exitCode: 0,
-        stderr: ''
-      });
-
-      const manifest = {
-        version: 'swift-5.8-RELEASE',
-        stable: true,
-        release_url: '',
-        files: [
-          {
-            filename: '',
-            platform: 'darwin',
-            download_url: '',
-            arch: '',
-            platform_version: undefined
-          }
-        ]
-      };
-      const actual = await finder.find(manifest);
-
-      expect(findInPathSpy).toHaveBeenCalledTimes(0);
-      expect(getExecOutputSpy).toHaveBeenCalledTimes(1);
-      expect(actual).toEqual(
-        path.join(userLibrary, 'swift-5.8-RELEASE.xctoolchain', '/usr/bin')
-      );
+      exitCode: 0,
+      stderr: ''
     });
+    toolPath = await finder.find(manifest);
+    expect(getExecOutputSpy).toHaveBeenCalledTimes(2);
+    expect(toolPath).toBe('');
+    await io.rmRF(userLibrary);
+
+    // Desn not installed any version of swift
+    await io.mkdirP(userLibrary);
+    toolPath = await finder.find(manifest);
+    expect(getExecOutputSpy).toHaveBeenCalledTimes(2);
+    expect(toolPath).toBe('');
+    await io.rmRF(userLibrary);
   });
 });
