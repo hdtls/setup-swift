@@ -67,7 +67,9 @@ export async function exportVariables(version: string, toolPath: string) {
     fs.symlinkSync(toolPath, toolchain);
   }
 
-  const TOOLCHAINS = toolchains.parseBundleIDFromDirectory(toolPath);
+  // Remove last to path components so we can access Info.plist file.
+  const plistPath = toolPath.split('/').slice(0, -2).join('/')
+  const TOOLCHAINS = toolchains.parseBundleIDFromDirectory(plistPath);
 
   core.debug(`export TOOLCHAINS environment variable: ${TOOLCHAINS}`);
   core.exportVariable('TOOLCHAINS', TOOLCHAINS);
