@@ -28916,10 +28916,9 @@ function _getAllToolchains() {
     const systemLibrary = toolchains.getSystemToolchainsDirectory();
     const userLibrary = toolchains.getToolchainsDirectory();
     const xcodeLibrary = toolchains.getXcodeDefaultToolchainsDirectory();
-    return fs
-        .readdirSync(systemLibrary, { withFileTypes: true })
-        .concat(fs.readdirSync(userLibrary, { withFileTypes: true }))
-        .concat(fs.readdirSync(xcodeLibrary, { withFileTypes: true }))
+    return _readdir(systemLibrary)
+        .concat(_readdir(userLibrary))
+        .concat(_readdir(xcodeLibrary))
         .filter(dirent => {
         if (dirent.isDirectory() && dirent.name.endsWith('.xctoolchain')) {
             try {
@@ -28935,6 +28934,14 @@ function _getAllToolchains() {
         .map(dirent => path.join(dirent.path, dirent.name, 'usr/bin'));
 }
 exports._getAllToolchains = _getAllToolchains;
+function _readdir(path) {
+    try {
+        return fs.readdirSync(path, { withFileTypes: true });
+    }
+    catch (error) {
+        return [];
+    }
+}
 
 
 /***/ }),

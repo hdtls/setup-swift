@@ -63,27 +63,6 @@ describe('finder', () => {
     jest.restoreAllMocks();
   });
 
-  function _getManifest(
-    version: string,
-    platform: string,
-    stable: boolean = true
-  ): tc.IToolRelease {
-    return {
-      version: version,
-      stable: stable,
-      release_url: '',
-      files: [
-        {
-          filename: '',
-          platform: platform,
-          download_url: '',
-          arch: '',
-          platform_version: undefined
-        }
-      ]
-    };
-  }
-
   it('find specified version of Swift in tool-cache', async () => {
     let expected = '/opt/hostedtoolcache/swift/5.8.0/x64/usr/bin';
     tcFindSpy.mockReturnValue('/opt/hostedtoolcache/swift/5.8.0/x64');
@@ -165,9 +144,6 @@ describe('finder', () => {
 
   it('find specified version of Swift outside of tool-cache on darwin', async () => {
     tcFindSpy.mockReturnValue('');
-
-    const manifest = _getManifest('swift-5.8-RELEASE', 'darwin');
-
     let expected = path.join(
       userLibrary,
       'swift-5.8-RELEASE.xctoolchain/usr/bin'
@@ -177,7 +153,7 @@ describe('finder', () => {
     let toolPath = await finder.find('swift-5.8-RELEASE', 'darwin', 'x64');
     expect(getExecOutputSpy).toHaveBeenCalledTimes(0);
     expect(toolPath).toBe(expected);
-    await io.rmRF(path.join(userLibrary, 'swift-5.8-RELEASE.xctoolchain'));
+    await io.rmRF(userLibrary);
 
     // swift-latest.xctoolchain match specified version of swift.
     expected = path.join(userLibrary, 'swift-latest.xctoolchain/usr/bin');
