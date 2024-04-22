@@ -38,11 +38,11 @@ jobs:
         run: __tests__/verify-swift.sh "5.10"
         shell: bash
       
-      - name: Run setup-swift (5.10.0)
+      - name: Run setup-swift (swift-5.10-RELEASE)
         uses: ./
         with:
           swift-version: swift-5.10-RELEASE
-      - name: Verify swift (5.10.0)
+      - name: Verify swift (swift-5.10-RELEASE)
         run: __tests__/verify-swift.sh "5.10"
         shell: bash
       
