@@ -88,8 +88,7 @@ describe('finder', () => {
     let expected = '/opt/hostedtoolcache/swift/5.8.0/x64/usr/bin';
     tcFindSpy.mockReturnValue('/opt/hostedtoolcache/swift/5.8.0/x64');
 
-    let manifest = _getManifest('swift-5.8-RELEASE', 'darwin');
-    let actual = await finder.find(manifest);
+    let actual = await finder.find('swift-5.8-RELEASE', 'darwin', 'x64');
 
     expect(actual).toBe(expected);
     expect(getExecOutputSpy).toHaveBeenCalledTimes(0);
@@ -102,18 +101,21 @@ describe('finder', () => {
       .mockReturnValueOnce(false);
 
     expected = path.join(cacheDir, 'swift/6.0+20240420/x64/usr/bin');
-    manifest = _getManifest(
+    actual = await finder.find(
       'swift-6.0-DEVELOPMENT-SNAPSHOT-2024-04-20-a',
       'darwin',
-      false
+      'x64'
     );
-    actual = await finder.find(manifest);
     expect(actual).toBe(expected);
     expect(tcFindSpy).toHaveBeenCalledTimes(1);
     expect(getExecOutputSpy).toHaveBeenCalledTimes(0);
     expect(findInPathSpy).toHaveBeenCalledTimes(0);
 
-    actual = await finder.find(manifest);
+    actual = await finder.find(
+      'swift-6.0-DEVELOPMENT-SNAPSHOT-2024-04-20-a',
+      'darwin',
+      'x64'
+    );
     expect(actual).toBe('');
     expect(tcFindSpy).toHaveBeenCalledTimes(1);
     expect(getExecOutputSpy).toHaveBeenCalledTimes(0);
@@ -133,13 +135,12 @@ describe('finder', () => {
         // Does installed any version of Swift.
         .mockResolvedValueOnce([]);
 
-      const manifest = _getManifest('swift-5.8-RELEASE', platform);
-      let toolPath = await finder.find(manifest);
+      let toolPath = await finder.find('swift-5.8-RELEASE', platform, 'x64');
       expect(toolPath).toBe('/usr/bin');
       expect(findInPathSpy).toHaveBeenCalledTimes(1);
       expect(getExecOutputSpy).toHaveBeenCalledTimes(1);
 
-      toolPath = await finder.find(manifest);
+      toolPath = await finder.find('swift-5.8-RELEASE', platform, 'x64');
       expect(toolPath).toBe('/usr/bin');
       expect(findInPathSpy).toHaveBeenCalledTimes(2);
       expect(getExecOutputSpy).toHaveBeenCalledTimes(2);
@@ -150,12 +151,12 @@ describe('finder', () => {
         exitCode: 0,
         stderr: ''
       });
-      toolPath = await finder.find(manifest);
+      toolPath = await finder.find('swift-5.8-RELEASE', platform, 'x64');
       expect(toolPath).toBe('');
       expect(findInPathSpy).toHaveBeenCalledTimes(3);
       expect(getExecOutputSpy).toHaveBeenCalledTimes(3);
 
-      toolPath = await finder.find(manifest);
+      toolPath = await finder.find('swift-5.8-RELEASE', platform, 'x64');
       expect(toolPath).toBe('');
       expect(findInPathSpy).toHaveBeenCalledTimes(4);
       expect(getExecOutputSpy).toHaveBeenCalledTimes(3);
@@ -173,7 +174,7 @@ describe('finder', () => {
     );
     await io.mkdirP(expected);
     fs.writeFileSync(path.join(expected, 'swift'), '');
-    let toolPath = await finder.find(manifest);
+    let toolPath = await finder.find('swift-5.8-RELEASE', 'darwin', 'x64');
     expect(getExecOutputSpy).toHaveBeenCalledTimes(0);
     expect(toolPath).toBe(expected);
     await io.rmRF(path.join(userLibrary, 'swift-5.8-RELEASE.xctoolchain'));
@@ -182,7 +183,7 @@ describe('finder', () => {
     expected = path.join(userLibrary, 'swift-latest.xctoolchain/usr/bin');
     await io.mkdirP(expected);
     fs.writeFileSync(path.join(expected, 'swift'), '');
-    toolPath = await finder.find(manifest);
+    toolPath = await finder.find('swift-5.8-RELEASE', 'darwin', 'x64');
     expect(getExecOutputSpy).toHaveBeenCalledTimes(1);
     expect(toolPath).toBe(expected);
     await io.rmRF(userLibrary);
@@ -197,14 +198,14 @@ describe('finder', () => {
       exitCode: 0,
       stderr: ''
     });
-    toolPath = await finder.find(manifest);
+    toolPath = await finder.find('swift-5.8-RELEASE', 'darwin', 'x64');
     expect(getExecOutputSpy).toHaveBeenCalledTimes(2);
     expect(toolPath).toBe('');
     await io.rmRF(userLibrary);
 
     // Desn not installed any version of swift
     await io.mkdirP(userLibrary);
-    toolPath = await finder.find(manifest);
+    toolPath = await finder.find('swift-5.8-RELEASE', 'darwin', 'x64');
     expect(getExecOutputSpy).toHaveBeenCalledTimes(2);
     expect(toolPath).toBe('');
     await io.rmRF(userLibrary);

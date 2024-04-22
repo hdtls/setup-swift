@@ -29,10 +29,10 @@ export async function run() {
 
     const release = manifest.files[0];
 
-    let toolPath = await finder.find(manifest);
+    let toolPath = await finder.find(manifest.version, release.platform, arch);
     if (!toolPath) {
       await installer.install(manifest.version, release);
-      toolPath = await finder.find(manifest);
+      toolPath = await finder.find(manifest.version, release.platform, arch);
     }
 
     if (!toolPath) {

@@ -2,7 +2,6 @@ import * as core from '@actions/core';
 import * as exec from '@actions/exec';
 import * as io from '@actions/io';
 import * as tc from '@actions/tool-cache';
-import * as os from 'os';
 import * as fs from 'fs';
 import * as utils from './utils';
 import * as toolchains from './toolchains';
@@ -13,27 +12,28 @@ import { re, t } from './re';
 /**
  * Finds the path for tool in the system-wide
  *
- * @param manifest  info of the tool
- * @param arch      optional arch. defaults to arch of computer
- * @returns         path where executable file located. return empty if not found
+ * @param version   version of the tool, e.g. swift-5.10-RELEASE.
+ * @param arch      optional arch. defaults to arch of computer.
+ * @returns         path where executable file located. return empty if not found.
  */
 export async function find(
-  manifest: tc.IToolRelease,
-  arch: string = os.arch()
+  version: string,
+  platform: string,
+  arch: string
 ): Promise<string> {
   // Check setup-swift action installed...
-  const version = formatter.parse(manifest.version);
+  const parseOutput = formatter.parse(version);
 
   // System-wide lookups for nightly versions will be ignored.
-  if (!re[t.SWIFTRELEASE].test(manifest.version)) {
+  if (!re[t.SWIFTRELEASE].test(version)) {
     const RUNNER_TOOL_CACHE = process.env['RUNNER_TOOL_CACHE'] || '';
-    const cachePath = path.join(RUNNER_TOOL_CACHE, 'swift', version, arch);
+    const cachePath = path.join(RUNNER_TOOL_CACHE, 'swift', parseOutput, arch);
     // Alignment log message with tc.find.
-    core.debug(`isExplicit: ${manifest.version}`);
+    core.debug(`isExplicit: ${version}`);
     core.debug(`explicit? true`);
     core.debug(`checking cache: ${cachePath}`);
     if (fs.existsSync(cachePath) && fs.existsSync(`${cachePath}.complete`)) {
-      core.debug(`Found tool in cache swift ${manifest.version} ${arch}`);
+      core.debug(`Found tool in cache swift ${version} ${arch}`);
       return path.join(cachePath, '/usr/bin');
     } else {
       core.debug('not found');
@@ -41,7 +41,7 @@ export async function find(
     return '';
   }
 
-  const toolPath = tc.find('swift', version, arch);
+  const toolPath = tc.find('swift', parseOutput, arch);
   if (toolPath.length) {
     return path.join(toolPath, '/usr/bin');
   }
@@ -49,11 +49,11 @@ export async function find(
   let toolPaths: string[] = [];
 
   // Platform specified system-wide finding.
-  switch (manifest.files[0].platform) {
+  switch (platform) {
     case 'darwin':
       toolPaths = _getAllToolchains();
       // Filter toolchains who's name contains version
-      const matched = toolPaths.filter(e => e.indexOf(manifest.version) > -1);
+      const matched = toolPaths.filter(e => e.indexOf(version) > -1);
       if (matched.length) {
         return matched[0];
       }
@@ -82,14 +82,14 @@ export async function find(
 
     if (
       utils.extractVerFromLogMessage(stdout) ==
-      manifest.version.replace(re[t.SWIFTRELEASE], '$1')
+      version.replace(re[t.SWIFTRELEASE], '$1')
     ) {
-      core.debug(`Found tool in ${toolPath} ${manifest.version} ${arch}`);
+      core.debug(`Found tool in ${toolPath} ${version} ${arch}`);
       return toolPath;
     }
   }
 
-  core.info(`Version ${manifest.version} was not found in the local cache`);
+  core.info(`Version ${version} was not found in the local cache`);
   return '';
 }
 

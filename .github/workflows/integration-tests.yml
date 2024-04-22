@@ -29,6 +29,22 @@ jobs:
       - name: Verify swift (5)
         run: __tests__/verify-swift.sh "5.10"
         shell: bash
+
+      - name: Run setup-swift (5.10)
+        uses: ./
+        with:
+          swift-version: 5.10
+      - name: Verify swift (5.10)
+        run: __tests__/verify-swift.sh "5.10"
+        shell: bash
+      
+      - name: Run setup-swift (5.10.0)
+        uses: ./
+        with:
+          swift-version: swift-5.10-RELEASE
+      - name: Verify swift (5.10.0)
+        run: __tests__/verify-swift.sh "5.10"
+        shell: bash
       
       - name: Run setup-swift (nightly-6.0)
         uses: ./
@@ -38,12 +54,12 @@ jobs:
         run: __tests__/verify-swift.sh "nightly-6.0"
         shell: bash
 
-      - name: Run setup-swift (swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a)
+      - name: Run setup-swift (swift-6.0-DEVELOPMENT-SNAPSHOT-2024-04-20-a)
         uses: ./
         with:
-          swift-version: swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a
-      - name: Verify swift (swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a)
-        run: __tests__/verify-swift.sh "swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a"
+          swift-version: swift-6.0-DEVELOPMENT-SNAPSHOT-2024-04-20-a
+      - name: Verify swift (swift-6.0-DEVELOPMENT-SNAPSHOT-2024-04-20-a)
+        run: __tests__/verify-swift.sh "swift-6.0-DEVELOPMENT-SNAPSHOT-2024-04-20-a"
         shell: bash
 
       - name: Run setup-swift (nightly)

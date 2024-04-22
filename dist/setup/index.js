@@ -28821,7 +28821,6 @@ const core = __importStar(__nccwpck_require__(2186));
 const exec = __importStar(__nccwpck_require__(1514));
 const io = __importStar(__nccwpck_require__(7436));
 const tc = __importStar(__nccwpck_require__(7784));
-const os = __importStar(__nccwpck_require__(2037));
 const fs = __importStar(__nccwpck_require__(7147));
 const utils = __importStar(__nccwpck_require__(1314));
 const toolchains = __importStar(__nccwpck_require__(9322));
@@ -28831,29 +28830,33 @@ const re_1 = __nccwpck_require__(1075);
 /**
  * Finds the path for tool in the system-wide
  *
- * @param manifest  info of the tool
- * @param arch      optional arch. defaults to arch of computer
- * @returns         path where executable file located. return empty if not found
+ * @param version   version of the tool, e.g. swift-5.10-RELEASE.
+ * @param arch      optional arch. defaults to arch of computer.
+ * @returns         path where executable file located. return empty if not found.
  */
-function find(manifest_1) {
-    return __awaiter(this, arguments, void 0, function* (manifest, arch = os.arch()) {
+function find(version, platform, arch) {
+    return __awaiter(this, void 0, void 0, function* () {
         // Check setup-swift action installed...
-        const version = formatter.parse(manifest.version);
+        const parseOutput = formatter.parse(version);
         // System-wide lookups for nightly versions will be ignored.
-        if (!re_1.re[re_1.t.SWIFTRELEASE].test(manifest.version)) {
+        if (!re_1.re[re_1.t.SWIFTRELEASE].test(version)) {
             const RUNNER_TOOL_CACHE = process.env['RUNNER_TOOL_CACHE'] || '';
-            const cachePath = path.join(RUNNER_TOOL_CACHE, 'swift', version, arch);
+            const cachePath = path.join(RUNNER_TOOL_CACHE, 'swift', parseOutput, arch);
             // Alignment log message with tc.find.
-            core.debug(`isExplicit: ${manifest.version}`);
+            core.debug(`isExplicit: ${version}`);
             core.debug(`explicit? true`);
 <<<<<<< HEAD
+<<<<<<< HEAD
             const logPath = path.join(RUNNER_TOOL_CACHE, 'swift', manifest.version, arch);
+=======
+            const logPath = path.join(RUNNER_TOOL_CACHE, 'swift', version, arch);
+>>>>>>> 64cf97a (refactor(finder): replace manifest with version and platform)
             core.debug(`checking cache: ${logPath}`);
 =======
             core.debug(`checking cache: ${cachePath}`);
 >>>>>>> 9955455 (fixup! feat: support find unstable version of swift)
             if (fs.existsSync(cachePath) && fs.existsSync(`${cachePath}.complete`)) {
-                core.debug(`Found tool in cache swift ${manifest.version} ${arch}`);
+                core.debug(`Found tool in cache swift ${version} ${arch}`);
                 return path.join(cachePath, '/usr/bin');
             }
             else {
@@ -28861,17 +28864,17 @@ function find(manifest_1) {
             }
             return '';
         }
-        const toolPath = tc.find('swift', version, arch);
+        const toolPath = tc.find('swift', parseOutput, arch);
         if (toolPath.length) {
             return path.join(toolPath, '/usr/bin');
         }
         let toolPaths = [];
         // Platform specified system-wide finding.
-        switch (manifest.files[0].platform) {
+        switch (platform) {
             case 'darwin':
                 toolPaths = _getAllToolchains();
                 // Filter toolchains who's name contains version
-                const matched = toolPaths.filter(e => e.indexOf(manifest.version) > -1);
+                const matched = toolPaths.filter(e => e.indexOf(version) > -1);
                 if (matched.length) {
                     return matched[0];
                 }
@@ -28893,12 +28896,12 @@ function find(manifest_1) {
             const options = { silent: true };
             const { stdout } = yield exec.getExecOutput(commandLine, ['--version'], options);
             if (utils.extractVerFromLogMessage(stdout) ==
-                manifest.version.replace(re_1.re[re_1.t.SWIFTRELEASE], '$1')) {
-                core.debug(`Found tool in ${toolPath} ${manifest.version} ${arch}`);
+                version.replace(re_1.re[re_1.t.SWIFTRELEASE], '$1')) {
+                core.debug(`Found tool in ${toolPath} ${version} ${arch}`);
                 return toolPath;
             }
         }
-        core.info(`Version ${manifest.version} was not found in the local cache`);
+        core.info(`Version ${version} was not found in the local cache`);
         return '';
     });
 }
@@ -29748,10 +29751,10 @@ function run() {
                     ? ''
                     : '10');
             const release = manifest.files[0];
-            let toolPath = yield finder.find(manifest);
+            let toolPath = yield finder.find(manifest.version, release.platform, arch);
             if (!toolPath) {
                 yield installer.install(manifest.version, release);
-                toolPath = yield finder.find(manifest);
+                toolPath = yield finder.find(manifest.version, release.platform, arch);
             }
             if (!toolPath) {
                 throw new Error([
