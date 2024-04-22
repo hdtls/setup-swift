@@ -28838,15 +28838,32 @@ const re_1 = __nccwpck_require__(1075);
 function find(manifest_1) {
     return __awaiter(this, arguments, void 0, function* (manifest, arch = os.arch()) {
         // Check setup-swift action installed...
-        let version = formatter.parse(manifest.version);
-        let toolPath = tc.find('swift', version, arch);
-        if (toolPath.length) {
-            return path.join(toolPath, '/usr/bin');
-        }
+        const version = formatter.parse(manifest.version);
         // System-wide lookups for nightly versions will be ignored.
         if (!re_1.re[re_1.t.SWIFTRELEASE].test(manifest.version)) {
-            core.info(`Version ${manifest.version} was not found in the local cache`);
+            const RUNNER_TOOL_CACHE = process.env['RUNNER_TOOL_CACHE'] || '';
+            const cachePath = path.join(RUNNER_TOOL_CACHE, 'swift', version, arch);
+            // Alignment log message with tc.find.
+            core.debug(`isExplicit: ${manifest.version}`);
+            core.debug(`explicit? true`);
+<<<<<<< HEAD
+            const logPath = path.join(RUNNER_TOOL_CACHE, 'swift', manifest.version, arch);
+            core.debug(`checking cache: ${logPath}`);
+=======
+            core.debug(`checking cache: ${cachePath}`);
+>>>>>>> 9955455 (fixup! feat: support find unstable version of swift)
+            if (fs.existsSync(cachePath) && fs.existsSync(`${cachePath}.complete`)) {
+                core.debug(`Found tool in cache swift ${manifest.version} ${arch}`);
+                return path.join(cachePath, '/usr/bin');
+            }
+            else {
+                core.debug('not found');
+            }
             return '';
+        }
+        const toolPath = tc.find('swift', version, arch);
+        if (toolPath.length) {
+            return path.join(toolPath, '/usr/bin');
         }
         let toolPaths = [];
         // Platform specified system-wide finding.

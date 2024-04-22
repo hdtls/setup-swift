@@ -22,16 +22,28 @@ export async function find(
   arch: string = os.arch()
 ): Promise<string> {
   // Check setup-swift action installed...
-  let version = formatter.parse(manifest.version);
-  let toolPath = tc.find('swift', version, arch);
-  if (toolPath.length) {
-    return path.join(toolPath, '/usr/bin');
-  }
+  const version = formatter.parse(manifest.version);
 
   // System-wide lookups for nightly versions will be ignored.
   if (!re[t.SWIFTRELEASE].test(manifest.version)) {
-    core.info(`Version ${manifest.version} was not found in the local cache`);
+    const RUNNER_TOOL_CACHE = process.env['RUNNER_TOOL_CACHE'] || '';
+    const cachePath = path.join(RUNNER_TOOL_CACHE, 'swift', version, arch);
+    // Alignment log message with tc.find.
+    core.debug(`isExplicit: ${manifest.version}`);
+    core.debug(`explicit? true`);
+    core.debug(`checking cache: ${cachePath}`);
+    if (fs.existsSync(cachePath) && fs.existsSync(`${cachePath}.complete`)) {
+      core.debug(`Found tool in cache swift ${manifest.version} ${arch}`);
+      return path.join(cachePath, '/usr/bin');
+    } else {
+      core.debug('not found');
+    }
     return '';
+  }
+
+  const toolPath = tc.find('swift', version, arch);
+  if (toolPath.length) {
+    return path.join(toolPath, '/usr/bin');
   }
 
   let toolPaths: string[] = [];

@@ -6,6 +6,8 @@ import * as finder from '../src/finder';
 import * as tc from '@actions/tool-cache';
 import * as toolchains from '../src/toolchains';
 
+const tempDir = path.join(__dirname, 'TEMP');
+const cacheDir = path.join(__dirname, 'TOOL_CACHE');
 const systemLibrary = path.join(__dirname, 'TEMP', 'System');
 const userLibrary = path.join(__dirname, 'TEMP', 'User');
 const xcodeLibrary = path.join(__dirname, 'TEMP', 'Xcode');
@@ -18,9 +20,14 @@ describe('finder', () => {
   beforeEach(async () => {
     console.log('::stop-commands::stoptoken'); // Disable executing of runner commands when running tests in actions
 
+    await io.mkdirP(tempDir);
+    await io.mkdirP(cacheDir);
     await io.mkdirP(systemLibrary);
     await io.mkdirP(userLibrary);
     await io.mkdirP(xcodeLibrary);
+
+    process.env['RUNNER_TEMP'] = tempDir;
+    process.env['RUNNER_TOOL_CACHE'] = cacheDir;
 
     jest
       .spyOn(toolchains, 'getSystemToolchainsDirectory')
@@ -48,14 +55,12 @@ describe('finder', () => {
     await io.rmRF(systemLibrary);
     await io.rmRF(userLibrary);
     await io.rmRF(xcodeLibrary);
+    await io.rmRF(cacheDir);
+    await io.rmRF(tempDir);
 
     jest.resetAllMocks();
     jest.clearAllMocks();
     jest.restoreAllMocks();
-  });
-
-  afterAll(async () => {
-    await io.rmRF(path.join(__dirname, 'TEMP'));
   });
 
   function _getManifest(
@@ -80,14 +85,37 @@ describe('finder', () => {
   }
 
   it('find specified version of Swift in tool-cache', async () => {
-    const expected = '/opt/hostedtoolcache/swift/5.8.0/x64/usr/bin';
-    // Result of tc.find should remove /usr/bin
-    tcFindSpy.mockReturnValue(expected.split('/').slice(0, -2).join('/'));
+    let expected = '/opt/hostedtoolcache/swift/5.8.0/x64/usr/bin';
+    tcFindSpy.mockReturnValue('/opt/hostedtoolcache/swift/5.8.0/x64');
 
-    const manifest = _getManifest('swift-5.8-RELEASE', 'darwin');
-    const actual = await finder.find(manifest);
+    let manifest = _getManifest('swift-5.8-RELEASE', 'darwin');
+    let actual = await finder.find(manifest);
 
     expect(actual).toBe(expected);
+    expect(getExecOutputSpy).toHaveBeenCalledTimes(0);
+    expect(findInPathSpy).toHaveBeenCalledTimes(0);
+
+    jest
+      .spyOn(fs, 'existsSync')
+      .mockReturnValueOnce(true)
+      .mockReturnValueOnce(true)
+      .mockReturnValueOnce(false);
+
+    expected = path.join(cacheDir, 'swift/6.0+20240420/x64/usr/bin');
+    manifest = _getManifest(
+      'swift-6.0-DEVELOPMENT-SNAPSHOT-2024-04-20-a',
+      'darwin',
+      false
+    );
+    actual = await finder.find(manifest);
+    expect(actual).toBe(expected);
+    expect(tcFindSpy).toHaveBeenCalledTimes(1);
+    expect(getExecOutputSpy).toHaveBeenCalledTimes(0);
+    expect(findInPathSpy).toHaveBeenCalledTimes(0);
+
+    actual = await finder.find(manifest);
+    expect(actual).toBe('');
+    expect(tcFindSpy).toHaveBeenCalledTimes(1);
     expect(getExecOutputSpy).toHaveBeenCalledTimes(0);
     expect(findInPathSpy).toHaveBeenCalledTimes(0);
   });
