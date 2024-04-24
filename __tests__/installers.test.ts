@@ -82,6 +82,7 @@ describe('installers', () => {
 
     await io.mkdirP(tempDir);
     await io.mkdirP(cacheDir);
+    await io.mkdirP(path.join(tempDir, 'uncompressed', 'swift-5.7.3-RELEASE'));
 
     process.env['RUNNER_TEMP'] = tempDir;
     process.env['RUNNER_TOOL_CACHE'] = cacheDir;
@@ -119,11 +120,7 @@ describe('installers', () => {
     tcExtractXarSpy = jest.spyOn(tc, 'extractXar').mockResolvedValue('');
     tcExtractTarSpy = jest
       .spyOn(tc, 'extractTar')
-      .mockImplementation(async () => {
-        const extractPath = path.join(tempDir, 'swift');
-        await io.mkdirP(extractPath);
-        return extractPath;
-      });
+      .mockResolvedValue(path.join(tempDir, 'uncompressed'));
     tcCacheDirSpy = jest.spyOn(tc, 'cacheDir');
     jest
       .spyOn(toolchains, 'getSystemToolchainsDirectory')
@@ -183,7 +180,7 @@ describe('installers', () => {
       async platform => {
         const release = _getReleaseFile(platform);
         await installer.install('swift-5.7.3-RELEASE', release);
-        const dir = path.join(cacheDir, 'swift/5.7.3/x64');
+        const dir = path.join(cacheDir, 'swift/5.7.3');
         expect(fs.existsSync(dir)).toBeTruthy();
       }
     );
@@ -191,7 +188,7 @@ describe('installers', () => {
     it('on [darwin] using type erased installer', async () => {
       const release = _getReleaseFile('darwin');
       await installer.install('swift-5.7.3-RELEASE', release);
-      const dir = path.join(cacheDir, 'swift/5.7.3/x64');
+      const dir = path.join(cacheDir, 'swift/5.7.3');
       expect(fs.existsSync(dir)).toBeTruthy();
 
       const toolchain = path.join(
@@ -210,14 +207,14 @@ describe('installers', () => {
     ])('using %s installer', async (platform, installer) => {
       const release = _getReleaseFile(platform);
       await installer.install('swift-5.7.3-RELEASE', release);
-      const dir = path.join(cacheDir, 'swift/5.7.3/x64');
+      const dir = path.join(cacheDir, 'swift/5.7.3');
       expect(fs.existsSync(dir)).toBeTruthy();
     });
 
     it('using darwin installer', async () => {
       const release = _getReleaseFile('darwin');
       await installer.install('swift-5.7.3-RELEASE', release);
-      const dir = path.join(cacheDir, 'swift/5.7.3/x64');
+      const dir = path.join(cacheDir, 'swift/5.7.3');
       expect(fs.existsSync(dir)).toBeTruthy();
       const toolchain = path.join(
         userLibrary,
