@@ -25,7 +25,13 @@ export async function install(version: string, release: tc.IToolReleaseFile) {
     )
   );
 
-  await tc.cacheDir(extractPath, 'swift', formatter.parse(version));
+  const toolPath = await tc.cacheDir(extractPath, 'swift', formatter.parse(version));
+
+  // Create xctoolchain symlink in user developer toolchains directory.
+  const userLibrary = toolchains.getToolchainsDirectory();
+  await io.mkdirP(userLibrary)
+  await io.rmRF(toolchains.getToolchain(version, userLibrary))
+  fs.symlinkSync(toolPath, toolchains.getToolchain(version, userLibrary))
 }
 
 /**
@@ -44,27 +50,18 @@ export async function exportVariables(version: string, toolPath: string) {
   const userLibrary = toolchains.getToolchainsDirectory()
   const xcodeLibrary = toolchains.getXcodeDefaultToolchainsDirectory()
 
+  // Link swift-latest.xctoolchain to toolPath.
   if (
     !toolPath.startsWith(systemLibrary) &&
     !toolPath.startsWith(userLibrary) &&
     !toolPath.startsWith(xcodeLibrary)
   ) {
-    if (!fs.existsSync(userLibrary)) {
-      await io.mkdirP(userLibrary);
+    await io.mkdirP(userLibrary);
+    const lts = toolchains.getToolchain('swift-latest', userLibrary);
+    if (fs.existsSync(lts)) {
+      await io.rmRF(lts);
     }
-
-    const toolchain = toolchains.getToolchain(version);
-    if (fs.existsSync(toolchain)) {
-      // Replace with tool-cache cached toolchain.
-      await io.rmRF(toolchain);
-    }
-
-    // Remove swift-latest.xctoolchain
-    if (fs.existsSync(toolchains.getToolchain('swift-latest'))) {
-      await io.rmRF(toolchains.getToolchain('swift-latest'));
-    }
-
-    fs.symlinkSync(toolPath, toolchain);
+    fs.symlinkSync(toolPath, lts);
   }
 
   // Remove last to path components so we can access Info.plist file.

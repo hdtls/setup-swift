@@ -29401,7 +29401,12 @@ function install(version, release) {
         let archivePath = yield tc.downloadTool(release.download_url);
         archivePath = yield tc.extractXar(archivePath);
         const extractPath = yield tc.extractTar(path.join(archivePath, `${release.filename.replace('-osx.pkg', '-osx-package.pkg')}`, 'Payload'));
-        yield tc.cacheDir(extractPath, 'swift', formatter.parse(version));
+        const toolPath = yield tc.cacheDir(extractPath, 'swift', formatter.parse(version));
+        // Create xctoolchain symlink in user developer toolchains directory.
+        const userLibrary = toolchains.getToolchainsDirectory();
+        yield io.mkdirP(userLibrary);
+        yield io.rmRF(toolchains.getToolchain(version, userLibrary));
+        fs.symlinkSync(toolPath, toolchains.getToolchain(version, userLibrary));
     });
 }
 exports.install = install;
@@ -29421,22 +29426,16 @@ function exportVariables(version, toolPath) {
         const systemLibrary = toolchains.getSystemToolchainsDirectory();
         const userLibrary = toolchains.getToolchainsDirectory();
         const xcodeLibrary = toolchains.getXcodeDefaultToolchainsDirectory();
+        // Link swift-latest.xctoolchain to toolPath.
         if (!toolPath.startsWith(systemLibrary) &&
             !toolPath.startsWith(userLibrary) &&
             !toolPath.startsWith(xcodeLibrary)) {
-            if (!fs.existsSync(userLibrary)) {
-                yield io.mkdirP(userLibrary);
+            yield io.mkdirP(userLibrary);
+            const lts = toolchains.getToolchain('swift-latest', userLibrary);
+            if (fs.existsSync(lts)) {
+                yield io.rmRF(lts);
             }
-            const toolchain = toolchains.getToolchain(version);
-            if (fs.existsSync(toolchain)) {
-                // Replace with tool-cache cached toolchain.
-                yield io.rmRF(toolchain);
-            }
-            // Remove swift-latest.xctoolchain
-            if (fs.existsSync(toolchains.getToolchain('swift-latest'))) {
-                yield io.rmRF(toolchains.getToolchain('swift-latest'));
-            }
-            fs.symlinkSync(toolPath, toolchain);
+            fs.symlinkSync(toolPath, lts);
         }
         // Remove last to path components so we can access Info.plist file.
         const plistPath = toolPath.split('/').slice(0, -2).join('/');

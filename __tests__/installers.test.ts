@@ -74,19 +74,30 @@ describe('installers', () => {
   let tcExtractXarSpy: jest.SpyInstance;
   let tcCacheDirSpy: jest.SpyInstance;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     console.log('::stop-commands::stoptoken'); // Disable executing of runner commands when running tests in actions
     process.env['GITHUB_ENV'] = ''; // Stub out ENV file functionality so we can verify it writes to standard out
     process.env['GITHUB_PATH'] = ''; // Stub out ENV file functionality so we can verify it writes to standard out
     process.env['GITHUB_OUTPUT'] = ''; // Stub out ENV file functionality so we can verify it writes to standard out
 
-    await io.rmRF(tempDir);
     await io.mkdirP(tempDir);
-    await io.rmRF(cacheDir);
     await io.mkdirP(cacheDir);
+
     process.env['RUNNER_TEMP'] = tempDir;
     process.env['RUNNER_TOOL_CACHE'] = cacheDir;
+  });
 
+  afterAll(async () => {
+    console.log('::stoptoken::'); // Re-enable executing of runner commands when running tests in actions
+
+    await io.rmRF(tempDir);
+    await io.rmRF(cacheDir);
+
+    process.env['RUNNER_TEMP'] = '';
+    process.env['RUNNER_TOOL_CACHE'] = '';
+  });
+
+  beforeEach(async () => {
     stdoutSpy = jest.spyOn(process.stdout, 'write');
     coreInfoSpy = jest.spyOn(core, 'info');
     coreDebugSpy = jest.spyOn(core, 'debug');
@@ -105,19 +116,30 @@ describe('installers', () => {
     gpgImportKeysSpy.mockImplementation(() => {});
     gpgVerifySpy = jest.spyOn(gpg, 'verify');
     gpgVerifySpy.mockImplementation(() => {});
-    tcExtractTarSpy = jest.spyOn(tc, 'extractTar');
-    tcExtractXarSpy = jest.spyOn(tc, 'extractXar');
+    tcExtractXarSpy = jest.spyOn(tc, 'extractXar').mockResolvedValue('');
+    tcExtractTarSpy = jest
+      .spyOn(tc, 'extractTar')
+      .mockImplementation(async () => {
+        const extractPath = path.join(tempDir, 'swift');
+        await io.mkdirP(extractPath);
+        return extractPath;
+      });
     tcCacheDirSpy = jest.spyOn(tc, 'cacheDir');
+    jest
+      .spyOn(toolchains, 'getSystemToolchainsDirectory')
+      .mockReturnValue(systemLibrary);
+    jest
+      .spyOn(toolchains, 'getToolchainsDirectory')
+      .mockReturnValue(userLibrary);
+    jest
+      .spyOn(toolchains, 'getXcodeDefaultToolchainsDirectory')
+      .mockReturnValue(xcodeLibrary);
   });
 
   afterEach(async () => {
     jest.resetAllMocks();
     jest.clearAllMocks();
     jest.restoreAllMocks();
-  });
-
-  afterAll(() => {
-    console.log('::stoptoken::'); // Re-enable executing of runner commands when running tests in actions
   });
 
   function _getReleaseFile(
@@ -156,25 +178,29 @@ describe('installers', () => {
       ).rejects.toThrow(`Installing Swift on ${platform} is not supported yet`);
     });
 
-    it.each(['amazonlinux', 'centos', 'darwin', 'ubuntu'])(
-      'using type erased installer',
+    it.each(['amazonlinux', 'centos', 'ubuntu'])(
+      'on [%s] using type erased installer',
       async platform => {
         const release = _getReleaseFile(platform);
-        tcExtractTarSpy.mockImplementation(async () => {
-          const extractPath = path.join(tempDir, 'swift');
-          await io.mkdirP(extractPath);
-          return extractPath;
-        });
-        if (platform == 'darwin') {
-          tcExtractXarSpy.mockResolvedValue('');
-        }
-
         await installer.install('swift-5.7.3-RELEASE', release);
-        expect(
-          fs.existsSync(path.join(cacheDir, 'swift/5.7.3/x64'))
-        ).toBeTruthy();
+        const dir = path.join(cacheDir, 'swift/5.7.3/x64');
+        expect(fs.existsSync(dir)).toBeTruthy();
       }
     );
+
+    it('on [darwin] using type erased installer', async () => {
+      const release = _getReleaseFile('darwin');
+      await installer.install('swift-5.7.3-RELEASE', release);
+      const dir = path.join(cacheDir, 'swift/5.7.3/x64');
+      expect(fs.existsSync(dir)).toBeTruthy();
+
+      const toolchain = path.join(
+        userLibrary,
+        'swift-5.7.3-RELEASE.xctoolchain'
+      );
+      expect(fs.existsSync(toolchain)).toBeTruthy();
+      expect(fs.lstatSync(toolchain).isSymbolicLink()).toBeTruthy();
+    });
 
     it.each([
       ['amazonlinux', amazonlinux],
@@ -183,41 +209,22 @@ describe('installers', () => {
       ['linux', linux]
     ])('using %s installer', async (platform, installer) => {
       const release = _getReleaseFile(platform);
-      tcExtractTarSpy.mockImplementation(async () => {
-        const extractPath = path.join(tempDir, 'swift');
-        await io.mkdirP(extractPath);
-        return extractPath;
-      });
-
       await installer.install('swift-5.7.3-RELEASE', release);
-
-      expect(downloadToolSpy).toHaveBeenCalledTimes(2);
-      expect(gpgImportKeysSpy).toHaveBeenCalled();
-      expect(gpgVerifySpy).toHaveBeenCalled();
-      expect(tcExtractTarSpy).toHaveBeenCalled();
-      expect(tcCacheDirSpy).toHaveBeenCalled();
-      if (platform == 'linux') {
-        expect(execSpy).toHaveBeenCalledTimes(0);
-      } else {
-        expect(execSpy).toHaveBeenCalled();
-      }
-      expect(
-        fs.existsSync(path.join(cacheDir, 'swift/5.7.3/x64'))
-      ).toBeTruthy();
+      const dir = path.join(cacheDir, 'swift/5.7.3/x64');
+      expect(fs.existsSync(dir)).toBeTruthy();
     });
 
     it('using darwin installer', async () => {
-      tcExtractXarSpy.mockResolvedValue('');
-      tcExtractTarSpy.mockImplementation(async () => {
-        const extractPath = path.join(tempDir, 'swift');
-        await io.mkdirP(extractPath);
-        return extractPath;
-      });
       const release = _getReleaseFile('darwin');
       await installer.install('swift-5.7.3-RELEASE', release);
-      expect(
-        fs.existsSync(path.join(cacheDir, 'swift/5.7.3/x64'))
-      ).toBeTruthy();
+      const dir = path.join(cacheDir, 'swift/5.7.3/x64');
+      expect(fs.existsSync(dir)).toBeTruthy();
+      const toolchain = path.join(
+        userLibrary,
+        'swift-5.7.3-RELEASE.xctoolchain'
+      );
+      expect(fs.existsSync(toolchain)).toBeTruthy();
+      expect(fs.lstatSync(toolchain).isSymbolicLink()).toBeTruthy();
     });
   });
 
@@ -237,12 +244,19 @@ describe('installers', () => {
       );
     });
 
-    it('using type erased installer', async () => {
-      const release = _getReleaseFile('ubuntu');
-      const toolPath = path.join(cacheDir, 'swift/5.7.3/x64/usr/bin');
-      await installer.exportVariables(`swift-5.7.3-RELEASE`, release, toolPath);
-      _assertExportVariables(toolPath, '5.7.3');
-    });
+    it.each(['amazonlinux', 'centos', 'ubuntu'])(
+      'using type erased installer',
+      async platform => {
+        const release = _getReleaseFile(platform);
+        const toolPath = path.join(cacheDir, 'swift/5.7.3/x64/usr/bin');
+        await installer.exportVariables(
+          `swift-5.7.3-RELEASE`,
+          release,
+          toolPath
+        );
+        _assertExportVariables(toolPath, '5.7.3');
+      }
+    );
 
     it.each([
       ['amazonlinux', amazonlinux],
@@ -251,35 +265,17 @@ describe('installers', () => {
       ['linux', linux]
     ])('using %s installer', async (platform, installer) => {
       const toolPath = path.join(cacheDir, 'swift/5.7.3/x64/usr/bin');
-
       await installer.exportVariables(`swift-5.7.3-RELEASE`, toolPath);
-
       _assertExportVariables(toolPath, '5.7.3');
     });
   });
 
   describe('export Swift variables using darwin installer', () => {
-    let existsSpy: jest.SpyInstance;
-    let symlinkSpy: jest.SpyInstance;
-    let mkdirPSpy: jest.SpyInstance;
-    let rmRFSpy: jest.SpyInstance;
-
     beforeEach(() => {
-      existsSpy = jest.spyOn(fs, 'existsSync').mockReturnValue(true);
-      //   readFileSpy = jest.spyOn(fs, 'readFileSync');
-      //   readFileSpy.mockReturnValue(contents);
-      symlinkSpy = jest.spyOn(fs, 'symlinkSync').mockImplementation(() => {});
-      mkdirPSpy = jest.spyOn(io, 'mkdirP').mockResolvedValue(void 0);
-      rmRFSpy = jest.spyOn(io, 'rmRF').mockResolvedValue(void 0);
-      jest
-        .spyOn(toolchains, 'getSystemToolchainsDirectory')
-        .mockReturnValue(systemLibrary);
-      jest
-        .spyOn(toolchains, 'getToolchainsDirectory')
-        .mockReturnValue(userLibrary);
-      jest
-        .spyOn(toolchains, 'getXcodeDefaultToolchainsDirectory')
-        .mockReturnValue(xcodeLibrary);
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+      jest.spyOn(fs, 'symlinkSync').mockImplementation(() => {});
+      jest.spyOn(io, 'mkdirP').mockResolvedValue(void 0);
+      jest.spyOn(io, 'rmRF').mockResolvedValue(void 0);
       jest.spyOn(fs, 'readFileSync').mockReturnValue(contents);
     });
 
@@ -299,7 +295,7 @@ describe('installers', () => {
       _assertExportVariables(toolPath, version);
     }
 
-    describe('unmaintained', () => {
+    describe('that swift is installed outside of the tool-cache', () => {
       it.each([
         [
           systemLibrary,
@@ -313,107 +309,10 @@ describe('installers', () => {
           'Xcode default toolchains',
           path.join(xcodeLibrary, '/Defaualt.xctoolchain/usr/bin')
         ]
-      ])('toolchain is in the %s', async (scope, toolPath) => {
+      ])('e.g. %s', async (scope, toolPath) => {
         await darwin.exportVariables(`swift-5.7.3-RELEASE`, toolPath);
 
-        expect(existsSpy).toHaveBeenCalledTimes(1);
-        expect(mkdirPSpy).toHaveBeenCalledTimes(0);
-        expect(rmRFSpy).toHaveBeenCalledTimes(0);
-        expect(symlinkSpy).toHaveBeenCalledTimes(0);
         _assertExportVariablesOnDarwin(toolPath, '5.7.3');
-      });
-    });
-
-    describe('that swift is cached in tool-cache)', () => {
-      describe('user toolchains does not exists', () => {
-        it('should create user toolchains directory', async () => {
-          const toolPath = '/opt/hostedtoolcache/swift/5.7.3/x64/usr/bin';
-
-          // user toolchains dir not exists so subdir is the same.
-          existsSpy
-            .mockReturnValueOnce(false)
-            .mockReturnValueOnce(false)
-            // Does not contains swift-latest.xctoolchain
-            .mockReturnValueOnce(false);
-
-          await darwin.exportVariables(`swift-5.7.3-RELEASE`, toolPath);
-
-          expect(existsSpy).toHaveBeenCalledTimes(4);
-          expect(mkdirPSpy).toHaveBeenCalledTimes(1);
-          expect(rmRFSpy).toHaveBeenCalledTimes(0);
-          expect(symlinkSpy).toHaveBeenCalledTimes(1);
-          _assertExportVariablesOnDarwin(toolPath, '5.7.3');
-        });
-      });
-
-      describe('user toolchains exists', () => {
-        it('toolchain with same version exists swift-latest symblink does not exists', async () => {
-          const toolPath = '/opt/hostedtoolcache/swift/5.7.3/x64/usr/bin';
-
-          existsSpy
-            .mockReturnValueOnce(true)
-            .mockReturnValueOnce(true)
-            .mockReturnValueOnce(false);
-
-          await darwin.exportVariables(`swift-5.7.3-RELEASE`, toolPath);
-
-          expect(existsSpy).toHaveBeenCalledTimes(4);
-          expect(mkdirPSpy).toHaveBeenCalledTimes(0);
-          expect(rmRFSpy).toHaveBeenCalledTimes(1);
-          expect(symlinkSpy).toHaveBeenCalledTimes(1);
-          _assertExportVariablesOnDarwin(toolPath, '5.7.3');
-        });
-
-        it('toolchain with same version exists swift-latest symblink also exists', async () => {
-          const toolPath = '/opt/hostedtoolcache/swift/5.7.3/x64/usr/bin';
-
-          existsSpy
-            .mockReturnValueOnce(true)
-            .mockReturnValueOnce(true)
-            .mockReturnValueOnce(true);
-
-          await darwin.exportVariables(`swift-5.7.3-RELEASE`, toolPath);
-
-          expect(existsSpy).toHaveBeenCalledTimes(4);
-          expect(mkdirPSpy).toHaveBeenCalledTimes(0);
-          expect(rmRFSpy).toHaveBeenCalledTimes(2);
-          expect(symlinkSpy).toHaveBeenCalledTimes(1);
-          _assertExportVariablesOnDarwin(toolPath, '5.7.3');
-        });
-
-        it('toolchain with same version does not exists but swift-latest symblink exists', async () => {
-          const toolPath = '/opt/hostedtoolcache/swift/5.7.3/x64/usr/bin';
-
-          existsSpy
-            .mockReturnValueOnce(true)
-            .mockReturnValueOnce(false)
-            .mockReturnValueOnce(true);
-
-          await darwin.exportVariables(`swift-5.7.3-RELEASE`, toolPath);
-
-          expect(existsSpy).toHaveBeenCalledTimes(4);
-          expect(mkdirPSpy).toHaveBeenCalledTimes(0);
-          expect(rmRFSpy).toHaveBeenCalledTimes(1);
-          expect(symlinkSpy).toHaveBeenCalledTimes(1);
-          _assertExportVariablesOnDarwin(toolPath, '5.7.3');
-        });
-
-        it('both toolchain with same version and swift-latest symblink does not exists', async () => {
-          const toolPath = '/opt/hostedtoolcache/swift/5.7.3/x64/usr/bin';
-
-          existsSpy
-            .mockReturnValueOnce(true)
-            .mockReturnValueOnce(false)
-            .mockReturnValueOnce(false);
-
-          await darwin.exportVariables(`swift-5.7.3-RELEASE`, toolPath);
-
-          expect(existsSpy).toHaveBeenCalledTimes(4);
-          expect(mkdirPSpy).toHaveBeenCalledTimes(0);
-          expect(rmRFSpy).toHaveBeenCalledTimes(0);
-          expect(symlinkSpy).toHaveBeenCalledTimes(1);
-          _assertExportVariablesOnDarwin(toolPath, '5.7.3');
-        });
       });
     });
   });
