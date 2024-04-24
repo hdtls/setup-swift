@@ -51,10 +51,9 @@ createToken(
 createToken('SWIFTNIGHTLYLOOSE', `^nightly-(${src[t.MAINVERSION]})$`);
 
 // ## Swift mainline nightly tag
-createToken(
-  'SWIFTMAINLINENIGHTLY',
-  `(?:^swift${src[t.DEVELOPMENTSNAPSHOT]}$|^nightly(?:-main)?$)`
-);
+createToken('SWIFTMAINLINENIGHTLY', `^swift${src[t.DEVELOPMENTSNAPSHOT]}$`);
+
+createToken('SWIFTMAINLINENIGHTLYLOOSE', '^nightly(?:-main)?$');
 
 // Max safe segment length for coercion.
 const MAX_SAFE_COMPONENT_LENGTH = 16;

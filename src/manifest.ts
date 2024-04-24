@@ -69,6 +69,7 @@ export async function resolve(
       )}-branch`;
       break;
     case re[t.SWIFTMAINLINENIGHTLY].test(versionSpec):
+    case re[t.SWIFTMAINLINENIGHTLYLOOSE].test(versionSpec):
       SWIFT_BRANCH = 'development';
       break;
     default:
@@ -105,8 +106,11 @@ export async function resolveLatestBuildIfNeeded(
   versionSpec: string,
   platform: string
 ): Promise<string> {
-  let branch = '';
   switch (true) {
+    case re[t.SWIFTRELEASE].test(versionSpec):
+    case re[t.SWIFTNIGHTLY].test(versionSpec):
+    case re[t.SWIFTMAINLINENIGHTLY].test(versionSpec):
+      return versionSpec;
     case new RegExp(`^${src[t.MAINVERSION]}$`).test(versionSpec):
     case new RegExp(`^${src[t.NUMERICIDENTIFIER]}$`).test(versionSpec):
       if (!tc.isExplicitVersion(versionSpec)) {
@@ -115,25 +119,10 @@ export async function resolveLatestBuildIfNeeded(
         versionSpec = versionSpec.replace(/([0-9]+\.[0-9]+).0/, '$1');
       }
       return `swift-${versionSpec}-RELEASE`;
-    case re[t.SWIFTRELEASE].test(versionSpec):
-      const m = versionSpec.match(re[t.SWIFTRELEASE]) || [];
-      if (tc.isExplicitVersion(m[1])) {
-        return versionSpec;
-      }
-      versionSpec = tc.evaluateVersions(SWIFT_VERSIONS, m[1]);
-      // If patch version is 0 remove it.
-      versionSpec = versionSpec.replace(/([0-9]+\.[0-9]+).0/, '$1');
-      return `swift-${versionSpec}-RELEASE`;
-    case re[t.SWIFTNIGHTLY].test(versionSpec):
     case re[t.SWIFTNIGHTLYLOOSE].test(versionSpec):
-    case re[t.SWIFTMAINLINENIGHTLY].test(versionSpec):
+    case re[t.SWIFTMAINLINENIGHTLYLOOSE].test(versionSpec):
       let branch = '';
-      if (re[t.SWIFTNIGHTLY].test(versionSpec)) {
-        branch = `swift-${versionSpec.replace(
-          re[t.SWIFTNIGHTLY],
-          '$1'
-        )}-branch`;
-      } else if (re[t.SWIFTNIGHTLYLOOSE].test(versionSpec)) {
+      if (re[t.SWIFTNIGHTLYLOOSE].test(versionSpec)) {
         branch = `swift-${versionSpec.replace(
           re[t.SWIFTNIGHTLYLOOSE],
           '$1'

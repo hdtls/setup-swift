@@ -28845,16 +28845,7 @@ function find(version, platform, arch) {
             // Alignment log message with tc.find.
             core.debug(`isExplicit: ${version}`);
             core.debug(`explicit? true`);
-<<<<<<< HEAD
-<<<<<<< HEAD
-            const logPath = path.join(RUNNER_TOOL_CACHE, 'swift', manifest.version, arch);
-=======
-            const logPath = path.join(RUNNER_TOOL_CACHE, 'swift', version, arch);
->>>>>>> 64cf97a (refactor(finder): replace manifest with version and platform)
-            core.debug(`checking cache: ${logPath}`);
-=======
             core.debug(`checking cache: ${cachePath}`);
->>>>>>> 9955455 (fixup! feat: support find unstable version of swift)
             if (fs.existsSync(cachePath) && fs.existsSync(`${cachePath}.complete`)) {
                 core.debug(`Found tool in cache swift ${version} ${arch}`);
                 return path.join(cachePath, '/usr/bin');
@@ -29870,6 +29861,7 @@ function resolve(versionSpec, platform, architecture, platformVersion) {
                 SWIFT_BRANCH = `swift-${versionSpec.replace(re_1.re[re_1.t.SWIFTNIGHTLYLOOSE], '$1')}-branch`;
                 break;
             case re_1.re[re_1.t.SWIFTMAINLINENIGHTLY].test(versionSpec):
+            case re_1.re[re_1.t.SWIFTMAINLINENIGHTLYLOOSE].test(versionSpec):
                 SWIFT_BRANCH = 'development';
                 break;
             default:
@@ -29904,8 +29896,11 @@ exports.resolve = resolve;
 function resolveLatestBuildIfNeeded(versionSpec, platform) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a, _b;
-        let branch = '';
         switch (true) {
+            case re_1.re[re_1.t.SWIFTRELEASE].test(versionSpec):
+            case re_1.re[re_1.t.SWIFTNIGHTLY].test(versionSpec):
+            case re_1.re[re_1.t.SWIFTMAINLINENIGHTLY].test(versionSpec):
+                return versionSpec;
             case new RegExp(`^${re_1.src[re_1.t.MAINVERSION]}$`).test(versionSpec):
             case new RegExp(`^${re_1.src[re_1.t.NUMERICIDENTIFIER]}$`).test(versionSpec):
                 if (!tc.isExplicitVersion(versionSpec)) {
@@ -29914,23 +29909,10 @@ function resolveLatestBuildIfNeeded(versionSpec, platform) {
                     versionSpec = versionSpec.replace(/([0-9]+\.[0-9]+).0/, '$1');
                 }
                 return `swift-${versionSpec}-RELEASE`;
-            case re_1.re[re_1.t.SWIFTRELEASE].test(versionSpec):
-                const m = versionSpec.match(re_1.re[re_1.t.SWIFTRELEASE]) || [];
-                if (tc.isExplicitVersion(m[1])) {
-                    return versionSpec;
-                }
-                versionSpec = tc.evaluateVersions(SWIFT_VERSIONS, m[1]);
-                // If patch version is 0 remove it.
-                versionSpec = versionSpec.replace(/([0-9]+\.[0-9]+).0/, '$1');
-                return `swift-${versionSpec}-RELEASE`;
-            case re_1.re[re_1.t.SWIFTNIGHTLY].test(versionSpec):
             case re_1.re[re_1.t.SWIFTNIGHTLYLOOSE].test(versionSpec):
-            case re_1.re[re_1.t.SWIFTMAINLINENIGHTLY].test(versionSpec):
+            case re_1.re[re_1.t.SWIFTMAINLINENIGHTLYLOOSE].test(versionSpec):
                 let branch = '';
-                if (re_1.re[re_1.t.SWIFTNIGHTLY].test(versionSpec)) {
-                    branch = `swift-${versionSpec.replace(re_1.re[re_1.t.SWIFTNIGHTLY], '$1')}-branch`;
-                }
-                else if (re_1.re[re_1.t.SWIFTNIGHTLYLOOSE].test(versionSpec)) {
+                if (re_1.re[re_1.t.SWIFTNIGHTLYLOOSE].test(versionSpec)) {
                     branch = `swift-${versionSpec.replace(re_1.re[re_1.t.SWIFTNIGHTLYLOOSE], '$1')}-branch`;
                 }
                 else {
@@ -30017,7 +29999,8 @@ createToken('DEVELOPMENTSNAPSHOT', '-DEVELOPMENT-SNAPSHOT-' +
 createToken('SWIFTNIGHTLY', `^swift-(${src[t.MAINVERSION]})${src[t.DEVELOPMENTSNAPSHOT]}$`);
 createToken('SWIFTNIGHTLYLOOSE', `^nightly-(${src[t.MAINVERSION]})$`);
 // ## Swift mainline nightly tag
-createToken('SWIFTMAINLINENIGHTLY', `(?:^swift${src[t.DEVELOPMENTSNAPSHOT]}$|^nightly(?:-main)?$)`);
+createToken('SWIFTMAINLINENIGHTLY', `^swift${src[t.DEVELOPMENTSNAPSHOT]}$`);
+createToken('SWIFTMAINLINENIGHTLYLOOSE', '^nightly(?:-main)?$');
 // Max safe segment length for coercion.
 const MAX_SAFE_COMPONENT_LENGTH = 16;
 createToken('COERCE', `${'(^|[^\\d])' + '(\\d{1,'}${MAX_SAFE_COMPONENT_LENGTH}})` +

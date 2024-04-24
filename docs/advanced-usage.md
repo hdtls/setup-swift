@@ -45,8 +45,8 @@ steps:
     swift-version: 'nightly'
 - run: swift --version
 ```
-- The `nightly`, `nightly-main` and `swift-DEVELOPMENT-SNAPSHOT-xxxx-xx-xx-a` will resolve to latest build of trunk development (main) that created from mainline development branches.
-- The `nightly-x.y` and `swift-x.y-DEVELOPMENT-SNAPSHOT-xxxx-xx-xx-a` will be resolve to latest build of `x.y` development that created from `release/x.y` branch.
+- The `nightly` and `nightly-main` will be resolve to the latest build of trunk development (main) that created from mainline development branches.
+- The `nightly-x.y` will be resolved to the latest build of `x.y` development that created from `release/x.y` branch.
 
 
 ### Matrix Testing

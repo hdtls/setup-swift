@@ -26,7 +26,7 @@ The action will first check the local [tool cache](docs/advanced-usage.md#hosted
 
 ## Supported version syntax
 
-The `swift-version` input supports the [Semantic Versioning Specification](https://semver.org/) and some special version notations (e.g. `semver ranges`, `swift-x.y-RELEASE`, `nightly`, `nightly-x.y`, etc.), for detailed examples please refer to the section: [Using swift-version input](docs/advanced-usage.md#using-the-swift-version-input) of the [Advanced usage](docs/advanced-usage.md) guide.
+The `swift-version` input supports the [Semantic Versioning Specification](https://semver.org/) and some special version notations (e.g. `swift-x.y-RELEASE`, `nightly`, `nightly-x.y`, etc.), for detailed examples please refer to the section: [Using swift-version input](docs/advanced-usage.md#using-the-swift-version-input) of the [Advanced usage](docs/advanced-usage.md) guide.
 
 ## Advanced usage
 

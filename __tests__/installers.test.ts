@@ -104,8 +104,7 @@ describe('installers', () => {
     coreDebugSpy = jest.spyOn(core, 'debug');
     execSpy = jest.spyOn(exec, 'exec');
     execSpy.mockImplementation(() => {});
-    getExecOutput = jest.spyOn(exec, 'getExecOutput');
-    getExecOutput.mockResolvedValue({
+    getExecOutput = jest.spyOn(exec, 'getExecOutput').mockResolvedValue({
       stdout: `Swift version 5.7.3 (swift-5.7.3-RELEASE)
     Target: x86_64-unknown-linux-gnu`,
       exitCode: 0,
