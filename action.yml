@@ -1,17 +1,15 @@
-name: Setup Swift
+name: "Setup Swift environment"
 description: "Set up a specific version of Swift and add the command-line tools to the PATH."
-author: Junfeng Zhang
+author: "Junfeng Zhang"
 inputs:
   swift-version: 
-    description: "Exact version of Swift to use."
+    description: "Version spec of the version to use. Examples: 5.9, swift-5.10-RELEASE, nightly-6.0."
     required: true
-  architecture:
-    description: "The target architecture of the Swift interpreter."
 outputs:
   swift-version:
     description: "The installed Swift version."
   swift-path:
-    description: "The absolute path to the Swift executable."
+    description: "The path to the Swift executable."
 runs:
-  using: 'node16'
-  main: 'dist/setup/index.js'
+  using: "node20"
+  main: "dist/setup/index.js"
