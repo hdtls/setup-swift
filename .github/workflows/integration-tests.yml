@@ -54,14 +54,6 @@ jobs:
         run: __tests__/verify-swift.sh "nightly-6.0"
         shell: bash
 
-      - name: Run setup-swift (swift-6.0-DEVELOPMENT-SNAPSHOT-2024-04-20-a)
-        uses: ./
-        with:
-          swift-version: "swift-6.0-DEVELOPMENT-SNAPSHOT-2024-04-20-a"
-      - name: Verify swift (swift-6.0-DEVELOPMENT-SNAPSHOT-2024-04-20-a)
-        run: __tests__/verify-swift.sh "swift-6.0-DEVELOPMENT-SNAPSHOT-2024-04-20-a"
-        shell: bash
-
       - name: Run setup-swift (nightly)
         uses: ./
         with:
@@ -75,13 +67,5 @@ jobs:
         with:
           swift-version: "nightly-main"
       - name: Verify swift (nightly-main)
-        run: __tests__/verify-swift.sh "^[0-9]+\.[0-9]+(\.[0-9]+)?-dev$" 
-        shell: bash
-
-      - name: Run setup-swift (swift-DEVELOPMENT-SNAPSHOT-2023-04-11-a)
-        uses: ./
-        with:
-          swift-version: "swift-DEVELOPMENT-SNAPSHOT-2023-04-11-a"
-      - name: Verify swift (swift-DEVELOPMENT-SNAPSHOT-2023-04-11-a)
         run: __tests__/verify-swift.sh "^[0-9]+\.[0-9]+(\.[0-9]+)?-dev$" 
         shell: bash
