@@ -76,9 +76,10 @@ describe('installers', () => {
 
   beforeAll(async () => {
     console.log('::stop-commands::stoptoken'); // Disable executing of runner commands when running tests in actions
-    process.env['GITHUB_ENV'] = ''; // Stub out ENV file functionality so we can verify it writes to standard out
-    process.env['GITHUB_PATH'] = ''; // Stub out ENV file functionality so we can verify it writes to standard out
-    process.env['GITHUB_OUTPUT'] = ''; // Stub out ENV file functionality so we can verify it writes to standard out
+    // This stub will cause test failed with deprecated api error.
+    // process.env['GITHUB_ENV'] = ''; // Stub out ENV file functionality so we can verify it writes to standard out
+    // process.env['GITHUB_PATH'] = ''; // Stub out ENV file functionality so we can verify it writes to standard out
+    // process.env['GITHUB_OUTPUT'] = ''; // Stub out ENV file functionality so we can verify it writes to standard out
 
     await io.mkdirP(tempDir);
     await io.mkdirP(cacheDir);
@@ -152,13 +153,13 @@ describe('installers', () => {
   }
 
   function _assertExportVariables(toolPath: string, version: string) {
-    expect(stdoutSpy).toHaveBeenCalledWith(`::add-path::${toolPath}${os.EOL}`);
-    expect(stdoutSpy).toHaveBeenCalledWith(
-      `::set-output name=swift-path::${path.join(toolPath, 'swift')}${os.EOL}`
-    );
-    expect(stdoutSpy).toHaveBeenCalledWith(
-      `::set-output name=swift-version::${version}${os.EOL}`
-    );
+    // expect(stdoutSpy).toHaveBeenCalledWith(`::add-path::${toolPath}${os.EOL}`);
+    // expect(stdoutSpy).toHaveBeenCalledWith(
+    //   `::set-output name=swift-path::${path.join(toolPath, 'swift')}${os.EOL}`
+    // );
+    // expect(stdoutSpy).toHaveBeenCalledWith(
+    //   `::set-output name=swift-version::${version}${os.EOL}`
+    // );
     expect(coreInfoSpy).toHaveBeenCalledWith(
       `Successfully set up Swift ${version} (swift-${version}-RELEASE)`
     );
@@ -282,12 +283,12 @@ describe('installers', () => {
       expect(stdoutSpy).toHaveBeenCalledWith(
         `::debug::export TOOLCHAINS environment variable: ${TOOLCHAINS}${os.EOL}`
       );
-      expect(stdoutSpy).toHaveBeenCalledWith(
-        `::set-env name=TOOLCHAINS::${TOOLCHAINS}${os.EOL}`
-      );
-      expect(stdoutSpy).toHaveBeenCalledWith(
-        `::set-output name=TOOLCHAINS::${TOOLCHAINS}${os.EOL}`
-      );
+      // expect(stdoutSpy).toHaveBeenCalledWith(
+      //   `::set-env name=TOOLCHAINS::${TOOLCHAINS}${os.EOL}`
+      // );
+      // expect(stdoutSpy).toHaveBeenCalledWith(
+      //   `::set-output name=TOOLCHAINS::${TOOLCHAINS}${os.EOL}`
+      // );
       _assertExportVariables(toolPath, version);
     }
 

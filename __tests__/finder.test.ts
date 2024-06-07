@@ -17,17 +17,30 @@ describe('finder', () => {
   let getExecOutputSpy: jest.SpyInstance;
   let tcFindSpy: jest.SpyInstance;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     console.log('::stop-commands::stoptoken'); // Disable executing of runner commands when running tests in actions
 
     await io.mkdirP(tempDir);
     await io.mkdirP(cacheDir);
-    await io.mkdirP(systemLibrary);
-    await io.mkdirP(userLibrary);
-    await io.mkdirP(xcodeLibrary);
 
     process.env['RUNNER_TEMP'] = tempDir;
     process.env['RUNNER_TOOL_CACHE'] = cacheDir;
+  });
+
+  afterAll(async () => {
+    console.log('::stoptoken::'); // Re-enable executing of runner commands when running tests in actions
+
+    await io.rmRF(tempDir);
+    await io.rmRF(cacheDir);
+
+    process.env['RUNNER_TEMP'] = '';
+    process.env['RUNNER_TOOL_CACHE'] = '';
+  });
+
+  beforeEach(async () => {
+    await io.mkdirP(systemLibrary);
+    await io.mkdirP(userLibrary);
+    await io.mkdirP(xcodeLibrary);
 
     jest
       .spyOn(toolchains, 'getSystemToolchainsDirectory')
@@ -50,13 +63,9 @@ describe('finder', () => {
   });
 
   afterEach(async () => {
-    console.log('::stoptoken::'); // Re-enable executing of runner commands when running tests in actions
-
     await io.rmRF(systemLibrary);
     await io.rmRF(userLibrary);
     await io.rmRF(xcodeLibrary);
-    await io.rmRF(cacheDir);
-    await io.rmRF(tempDir);
 
     jest.resetAllMocks();
     jest.clearAllMocks();
