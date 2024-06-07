@@ -27,7 +27,7 @@ jobs:
         with:
           swift-version: "5"
       - name: Verify swift (5)
-        run: __tests__/verify-swift.sh "5.10"
+        run: __tests__/verify-swift.sh "5.10.1"
         shell: bash
 
       - name: Run setup-swift (5.10)
@@ -35,15 +35,15 @@ jobs:
         with:
           swift-version: "5.10"
       - name: Verify swift (5.10)
-        run: __tests__/verify-swift.sh "5.10"
+        run: __tests__/verify-swift.sh "5.10.1"
         shell: bash
       
-      - name: Run setup-swift (swift-5.10-RELEASE)
+      - name: Run setup-swift (swift-5.10.1-RELEASE)
         uses: ./
         with:
-          swift-version: "swift-5.10-RELEASE"
-      - name: Verify swift (swift-5.10-RELEASE)
-        run: __tests__/verify-swift.sh "5.10"
+          swift-version: "swift-5.10.1-RELEASE"
+      - name: Verify swift (swift-5.10.1-RELEASE)
+        run: __tests__/verify-swift.sh "5.10.1"
         shell: bash
       
       - name: Run setup-swift (nightly-6.0)

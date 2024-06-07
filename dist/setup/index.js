@@ -29934,6 +29934,7 @@ function resolveLatestBuildIfNeeded(versionSpec, platform) {
 exports.resolveLatestBuildIfNeeded = resolveLatestBuildIfNeeded;
 // Also update Github actions integration-tests if needed.
 const SWIFT_VERSIONS = [
+    '5.10.1',
     '5.10',
     '5.9.2',
     '5.9.1',

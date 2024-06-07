@@ -10,7 +10,7 @@ describe('manifest', () => {
     it.each([
       ['5.7.1', 'swift-5.7.1-RELEASE'],
       ['5.7', 'swift-5.7.3-RELEASE'],
-      ['5', 'swift-5.10-RELEASE']
+      ['5', 'swift-5.10.1-RELEASE']
     ])('from numeric version: %s', async (versionSpec, expected) => {
       const actual = await mm.resolveLatestBuildIfNeeded(versionSpec, 'xcode');
       expect(actual).toBe(expected);
@@ -235,7 +235,7 @@ name: Swift Development Snapshot
   describe.each(['5'])(
     'test resolve manifest from most recent major version %s',
     versionSpec => {
-      const lts = 'swift-5.10-RELEASE';
+      const lts = 'swift-5.10.1-RELEASE';
       it.each(['x64', 'arm64'])('on darwin %s', async arch => {
         const actual = await mm.resolve(versionSpec, 'darwin', arch);
         const expected = {
