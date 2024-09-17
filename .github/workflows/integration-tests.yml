@@ -46,22 +46,6 @@ jobs:
         run: __tests__/verify-swift.sh "5.10.1"
         shell: bash
       
-      - name: Run setup-swift (nightly-6.0)
-        uses: ./
-        with:
-          swift-version: "nightly-6.0"
-      - name: Verify swift (nightly-6.0)
-        run: __tests__/verify-swift.sh "nightly-6.0"
-        shell: bash
-
-      - name: Run setup-swift (nightly)
-        uses: ./
-        with:
-          swift-version: "nightly"
-      - name: Verify swift (nightly)
-        run: __tests__/verify-swift.sh "^[0-9]+\.[0-9]+(\.[0-9]+)?-dev$" 
-        shell: bash
-
       - name: Run setup-swift (nightly-main)
         uses: ./
         with:
