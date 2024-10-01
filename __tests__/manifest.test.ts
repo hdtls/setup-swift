@@ -72,8 +72,6 @@ name: Swift Development Snapshot
       expect(actual).toBe('swift-5.7-DEVELOPMENT-SNAPSHOT-2022-10-03-a');
     });
 
-    //download.swift.org/swift-6.0-branch/ubuntu2204/swift-6.0-DEVELOPMENT-SNAPSHOT-2024-04-18-a/swift-6.0-DEVELOPMENT-SNAPSHOT-2024-04-18-a-ubuntu22.04.tar.gz -o /home/runner/work/_temp/swift.tar.gz https://download.swift.org/swift-6.0-branch/ubuntu2204/swift-6.0-DEVELOPMENT-SNAPSHOT-2024-04-18-a/swift-6.0-DEVELOPMENT-SNAPSHOT-2024-04-18-a-ubuntu22.04.tar.gz.sig -o /home/runner/work/_temp/swift.tar.gz.sig
-
     it.each(['5.7.1.1', 'swift-RELEASE'])(
       'from unsupported input: %s',
       async versionSpec => {
