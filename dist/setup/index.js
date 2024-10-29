@@ -29808,8 +29808,8 @@ async function resolveLatestBuildIfNeeded(versionSpec, platform) {
             throw new Error(`Cannot create release file for an unsupported version: ${versionSpec}`);
     }
 }
-// Also update Github actions integration-tests if needed.
 const SWIFT_VERSIONS = [
+    '6.0.2',
     '6.0.1',
     '6.0',
     '5.10.1',
