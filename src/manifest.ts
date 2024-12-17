@@ -146,6 +146,7 @@ export async function resolveLatestBuildIfNeeded(
 }
 
 const SWIFT_VERSIONS = [
+  '6.0.3',
   '6.0.2',
   '6.0.1',
   '6.0',
